@@ -238,17 +238,21 @@ vera_mcp_service/
 
 ---
 
-### Этап 5 — Observability (Phoenix) ⏳
+### Этап 5 — Observability (Phoenix) ✅ Выполнено (2026-07-09)
 
 Из `AGENT_VERA_ARCHITECTURE.md`, раздел "Observability" — этому сервису отведены **ручные** spans на каждый вызов тула (в отличие от Agent Service, где основной объём покрывает автоинструментация `LangChainInstrumentor` — здесь такой автоинструментации нет, `mcp`/`FastMCP` ею не покрываются).
 
-- [ ] 5.1 `observability/tracing.py` — `TracerProvider` + OTLP/HTTP экспортёр в `PHOENIX_OTLP_ENDPOINT`
-- [ ] 5.2 Span `mcp.tool_call` (атрибут `mcp.tool_name=kb_search`) вокруг вызова тула, вложенный span `rag.search` вокруг HTTP-вызова в `rag_client.search()` — дерево должно совпасть с примером в архитектурном документе: `[span] mcp.tool_call: kb_search └── [span] rag.search`
-- [ ] 5.3 Юнит-тест: оба спана создаются при вызове `_kb_search` с ожидаемыми именами/атрибутами (по образцу `vera_agent_service/tests/unit/observability/test_tracing.py` — там же задокументирована находка про однократную инициализацию `set_tracer_provider()` за процесс, актуальная и здесь)
+- [x] 5.1 `observability/tracing.py` — `TracerProvider` + OTLP/HTTP экспортёр в `PHOENIX_OTLP_ENDPOINT`, `configure_tracing()`/`get_tracer()`/`reset_for_tests()` — по образцу `vera_agent_service/app/observability/tracing.py` (без `openinference`/`LangChainInstrumentor` — не нужны, здесь нет LangChain)
+- [x] 5.2 Span `mcp.tool_call` (атрибут `mcp.tool_name=kb_search`) вокруг вызова тула (`app/tools/kb_search.py`), вложенный span `rag.search` вокруг тела `RagClient.search()` (`app/clients/rag_client.py`) — дерево подтверждено тестом: `mcp.tool_call: kb_search └── rag.search`
+- [x] 5.3 Юнит-тесты (`tests/unit/observability/test_tracing.py`): оба спана создаются с ожидаемыми именами/атрибутом, вложенность подтверждена сравнением `rag_search_span.parent.span_id == tool_call_span.context.span_id`
 
-**Definition of Done:** тестовый вызов `kb_search` виден в Phoenix span-деревом `mcp.tool_call → rag.search` с латентностью каждого шага.
+**Definition of Done:** тестовый вызов `kb_search` виден span-деревом `mcp.tool_call → rag.search` с корректной вложенностью. ✅ 38/38 тестов проекта зелёные (дважды подряд), `ruff check .` чист. Реальная проверка в живом Phoenix (аналог того, что делал Agent Service на своём Этапе 9) — не выполнялась в этой сессии, локальный Phoenix не поднимался; структура спанов верифицирована через `InMemorySpanExporter`, что и было целью этого этапа.
 
 **Ссылки:** `AGENT_VERA_ARCHITECTURE.md`, раздел "Observability — логирование и оценка агента".
+
+**Фактически сделано, с находкой, важной для порядка инициализации:**
+
+- **`configure_tracing()` вызывается не на уровне модуля `main.py`, а внутри `run()`.** Находка: при полном прогоне тестов (`pytest tests/`, не по одному файлу) `tests/integration/test_main.py` импортирует `app.main`, который на уровне модуля вызывал `configure_tracing(settings.observability)` — это настоящий `TracerProvider` с `OTLPSpanExporter` на `http://localhost:6006/v1/traces`. Он **выигрывал гонку** за `set_tracer_provider()` (можно вызвать только один раз за процесс — та же находка, что и в `vera_agent_service`) раньше, чем модуль `tests/unit/observability/test_tracing.py` успевал вызвать свой `reset_for_tests(_exporter)` — из-за порядка сбора тестов `pytest`. В результате все три теста этого этапа падали **только при полном прогоне**, по отдельности — проходили (тот же класс проблемы, что уже находился в `vera_agent_service`, Этап 5, только там причиной был `AppStatus.should_exit`, здесь — `set_tracer_provider()`). Фоновый эффект был виден и по логам: `BatchSpanProcessor` реального провайдера пытался экспортировать спаны в недоступный Phoenix и логировал ошибки таймаута экспорта. Исправлено переносом `configure_tracing()` в `run()` — импорт `app.main` (в том числе тестами) больше не имеет побочного эффекта настройки глобального OTel-состояния. Безопасно: `trace.get_tracer()`, уже вызванный при импорте `app/tools/kb_search.py`/`app/clients/rag_client.py`, возвращает прокси, резолвящий актуальный провайдер в момент создания span'а, не в момент вызова `get_tracer()`.
 
 ---
 

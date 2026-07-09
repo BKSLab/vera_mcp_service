@@ -4,8 +4,10 @@ import httpx
 
 from app.core.settings import RagClientSettings
 from app.exceptions.rag import RagUnavailableError
+from app.observability.tracing import get_tracer
 
 logger = logging.getLogger('vera_mcp_service')
+tracer = get_tracer()
 
 SEARCH_PATH = '/api/v1/search'
 HEALTH_PATH = '/api/v1/health'
@@ -41,6 +43,10 @@ class RagClient:
                 должен пробросить его дальше, не превращать в `dict` с
                 полем ошибки (MCP_SERVICE_PLAN.md, раздел 0.1).
         """
+        with tracer.start_as_current_span('rag.search'):
+            return await self._search_body(query, audience, top_k)
+
+    async def _search_body(self, query: str, audience: str, top_k: int) -> dict:
         # Не логируем текст query на INFO — потенциально чувствительные
         # данные о здоровье/инвалидности (MCP_SERVICE_PLAN.md, раздел 0.3).
         logger.info('🔍 Запрос к RAG Service: query_length=%d audience=%r top_k=%d', len(query), audience, top_k)

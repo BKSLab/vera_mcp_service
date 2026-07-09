@@ -7,6 +7,7 @@ from app.clients.rag_client import RagClient
 from app.core.config_logger import logger
 from app.core.settings import get_settings
 from app.health import HealthRegistry
+from app.observability.tracing import configure_tracing
 from app.tools import register_all_tools
 
 settings = get_settings()
@@ -51,6 +52,14 @@ async def health(request: Request) -> JSONResponse:
 
 
 def run() -> None:
+    # Вызывается здесь, не на уровне модуля — импорт `app.main` (например,
+    # тестами) не должен иметь побочного эффекта в виде настройки глобального
+    # OTel-провайдера на реальный OTLP-эндпоинт. Безопасно вызывать после
+    # того, как `get_tracer()` уже был вызван в `app/tools/kb_search.py` и
+    # `app/clients/rag_client.py` при их импорте — `trace.get_tracer()`
+    # возвращает прокси, резолвящий актуальный провайдер в момент создания
+    # span'а, а не в момент самого вызова `get_tracer()`.
+    configure_tracing(settings.observability)
     logger.info('🚀 Старт vera_mcp_service')
     mcp.run(transport='streamable-http')
 

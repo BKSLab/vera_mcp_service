@@ -5,8 +5,10 @@ from mcp.server.fastmcp import FastMCP
 from pydantic import Field
 
 from app.clients.rag_client import RagClient
+from app.observability.tracing import get_tracer
 
 logger = logging.getLogger('vera_mcp_service')
+tracer = get_tracer()
 
 KB_SEARCH_DESCRIPTION = (
     "Поиск по базе знаний о правах людей с инвалидностью в сфере "
@@ -24,7 +26,7 @@ def register_kb_search(mcp: FastMCP, rag_client: RagClient, top_k: int) -> None:
 
     Args:
         mcp: экземпляр `FastMCP`, на котором регистрируется тул.
-        rag_client: клиент RAG Service (создаётся в `lifespan`, `main.py`, Этап 4).
+        rag_client: клиент RAG Service (собирается на уровне модуля `main.py`, Этап 4).
         top_k: сколько чанков запрашивать у RAG Service (`RagClientSettings.rag_search_top_k`).
     """
 
@@ -45,6 +47,7 @@ def register_kb_search(mcp: FastMCP, rag_client: RagClient, top_k: int) -> None:
                 здесь (раздел 0.1 — Agent Service ждёт исключение MCP-уровня,
                 не `dict` с полем ошибки).
         """
-        return await rag_client.search(query=query, audience=audience, top_k=top_k)
+        with tracer.start_as_current_span('mcp.tool_call', attributes={'mcp.tool_name': 'kb_search'}):
+            return await rag_client.search(query=query, audience=audience, top_k=top_k)
 
     mcp.add_tool(kb_search, name='kb_search', description=KB_SEARCH_DESCRIPTION)
