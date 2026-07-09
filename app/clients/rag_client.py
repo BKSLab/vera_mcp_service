@@ -8,6 +8,7 @@ from app.exceptions.rag import RagUnavailableError
 logger = logging.getLogger('vera_mcp_service')
 
 SEARCH_PATH = '/api/v1/search'
+HEALTH_PATH = '/api/v1/health'
 
 
 class RagClient:
@@ -71,3 +72,22 @@ class RagClient:
 
         logger.info('✅ RAG Service вернул %d чанков', len(payload['chunks']))
         return payload
+
+    async def check_health(self) -> bool:
+        """`GET /api/v1/health` — используется реестром health-check'ов
+        (`app/health.py`, MCP_SERVICE_PLAN.md, Этап 4). Без авторизации,
+        как и на стороне RAG Service (`vera_rag_service/README.md`).
+
+        Любой сбой (сеть/таймаут/не-200) трактуется как недоступность —
+        `GET /health` этого сервиса не должен падать из-за деталей ошибки,
+        только знать факт "недоступен".
+        """
+        try:
+            response = await self._httpx_client.get(
+                f'{self._settings.rag_service_url}{HEALTH_PATH}',
+                timeout=self._settings.rag_search_timeout_seconds,
+            )
+        except httpx.HTTPError as error:
+            logger.warning('⚠️ RAG Service health-check не прошёл (сеть/таймаут): %s', error)
+            return False
+        return response.status_code == httpx.codes.OK

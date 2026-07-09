@@ -222,35 +222,19 @@ vera_mcp_service/
 
 ---
 
-### Этап 4 — `main.py`: сборка приложения и `GET /health` ⏳
+### Этап 4 — `main.py`: сборка приложения и `GET /health` ✅ Выполнено (2026-07-09)
 
-- [ ] 4.1 `main.py`:
-  ```python
-  mcp = FastMCP(
-      "vera-tools",
-      host=settings.app.host,
-      port=settings.app.port,
-      stateless_http=True,
-      lifespan=app_lifespan,  # инициализация httpx.AsyncClient (этап 1.1) + OTel (этап 6)
-  )
-  register_all_tools(mcp)
+- [x] 4.1 `main.py` — `mcp = FastMCP("vera-tools", host=..., port=..., stateless_http=True)`, `register_all_tools(mcp, rag_client, ...)`, `@mcp.custom_route("/health", methods=["GET"])`, `mcp.run(transport="streamable-http")` в `run()`/`__main__`. Код ответа `/health` всегда `200`
+- [x] 4.2 Никакого жёсткого startup-чека доступности RAG Service — подтверждено тестом (сервис отвечает на `/health` и на MCP-вызовы независимо от доступности RAG)
+- [x] 4.3 `HealthRegistry` (`app/health.py`) — реестр проверок по образцу `register_all_tools` (раздел 0.3): `.register(name, check)`/`.run() -> dict[str, str]`, не один захардкоженный RAG-чек. На этой итерации зарегистрирована одна проверка (`rag_service` → `RagClient.check_health()`), интерфейс уже рассчитан на вторую без переписывания существующей
+- [x] 4.4 Юнит-тесты: `RagClient.check_health()` — `200` → `True`, `503`/сетевая ошибка → `False`, запрашивается ожидаемый путь (`tests/unit/clients/test_rag_client.py`); `HealthRegistry` изолированно — `ok`/`unreachable`/множественные независимые проверки/исключение в проверке трактуется как `unreachable`, не падает (`tests/unit/test_health.py`)
 
+**Definition of Done:** приложение стартует и отвечает на `GET /health` и на MCP-вызовы (`/mcp`) даже при заведомо недоступном `RAG_SERVICE_URL`. ✅ 35/35 тестов проекта зелёные (дважды подряд), `ruff check .` чист. Интеграционный тест (`tests/integration/test_main.py`) поднимает настоящий `app.main.mcp` и проверяет `GET /health` (`200`, поле `rag_service` — `ok`/`unreachable`, окружение-зависимо) и что `kb_search` виден настоящему `MultiServerMCPClient`.
 
-  @mcp.custom_route("/health", methods=["GET"])
-  async def health(request: Request) -> JSONResponse:
-      dependency_statuses = await run_health_checks()  # реестр проверок, не один захардкоженный RAG-чек
-      return JSONResponse({"status": "ok", **dependency_statuses})
+**Фактически сделано, с существенным отклонением от исходного текста плана и находкой:**
 
-
-  if __name__ == "__main__":
-      mcp.run(transport="streamable-http")
-  ```
-  Код ответа `/health` всегда `200` — недоступность RAG Service отражается только в теле (по аналогии с тем, как Agent Service трактует поле `mcp` в своём `/health`, не роняя весь health-check)
-- [ ] 4.2 Никакого жёсткого startup-чека доступности RAG Service в `lifespan` — сервис должен уметь стартовать даже если RAG временно недоступен (недоступность проявляется как ошибка конкретного вызова `kb_search`, не как невозможность поднять контейнер — тот же принцип, каким Agent Service обошёлся с отсутствующим MCP Tools Server, `AGENT_SERVICE_PLAN.md`, этап 8.1)
-- [ ] 4.3 `run_health_checks()` — реестр проверок по образцу `register_all_tools` (раздел 0.3), не один захардкоженный RAG-чек: `register_health_check("rag_service", check_rag_health)` на этой итерации, но интерфейс уже рассчитан на добавление второй проверки без переписывания существующей
-- [ ] 4.4 Юнит-тест: недоступный `RAG_SERVICE_URL` → `/health` всё равно `200`, поле `rag_service: "unreachable"`
-
-**Definition of Done:** приложение стартует и отвечает на `GET /health` и на MCP-вызовы (`/mcp`) даже при заведомо недоступном `RAG_SERVICE_URL` (например, несуществующий порт).
+- **`lifespan=app_lifespan` у `FastMCP` — не использован, вопреки исходному наброску плана.** Находка: у `mcp.server.fastmcp.FastMCP` параметр `lifespan` — это контекст **низкоуровневого MCP-сервера**, привязанный к жизненному циклу MCP-**сессии** через `StreamableHTTPSessionManager`, а не ASGI-старт всего процесса (в отличие от `lifespan` в FastAPI/Starlette). Подтверждено вручную: тулы, зарегистрированные внутри такого lifespan, не гарантированно видны до первого реального MCP-запроса — `GET /health` (обычный Starlette `custom_route`, вне MCP-сессии) отдавал ответ раньше, чем lifespan успевал выполниться. Решение: `httpx.AsyncClient()`, `RagClient`, `register_all_tools(...)` и `HealthRegistry` собираются **синхронно на уровне модуля** — конструктор `httpx.AsyncClient()` не требует запущенного event loop, только `.get()/.post()/.aclose()` асинхронны, поэтому это безопасно. Явного закрытия `httpx_client` при остановке процесса нет — некритично (сокеты освобождает ОС при завершении процесса), эксплицитный `lifespan` для этого не подходит по только что описанной причине.
+- **Вторая находка:** `app.main.mcp` — процессный синглтон (как и в реальном деплое, `mcp.run()` вызывается ровно один раз за процесс), и `FastMCP.streamable_http_app()`/`StreamableHTTPSessionManager.run()` можно вызвать только один раз за время жизни инстанса. Интеграционный тест поэтому — один тест с одним запуском сервера на оба сценария (health + список тулов), не два отдельных теста с общей fixture (module-scoped async fixture у `pytest-asyncio` конфликтовала с function-scoped event loop этого проекта и подвешивала прогон — `pytest.ini` не настраивает `asyncio_default_fixture_loop_scope`, менять его ради одного теста не оправдано).
 
 ---
 

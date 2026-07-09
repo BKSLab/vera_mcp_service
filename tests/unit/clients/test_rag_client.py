@@ -120,3 +120,44 @@ async def test_search_raises_rag_unavailable_on_missing_chunks_field():
 
     with pytest.raises(RagUnavailableError):
         await client.search(query='квота', audience='both', top_k=5)
+
+
+async def test_check_health_returns_true_on_200():
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(200, json={'status': 'ok', 'database': 'ok'})
+
+    client = _client(handler)
+
+    assert await client.check_health() is True
+
+
+async def test_check_health_returns_false_on_503():
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(503, json={'detail': 'База данных недоступна.'})
+
+    client = _client(handler)
+
+    assert await client.check_health() is False
+
+
+async def test_check_health_returns_false_on_connection_error():
+    def handler(request: httpx.Request) -> httpx.Response:
+        raise httpx.ConnectError('connection refused', request=request)
+
+    client = _client(handler)
+
+    assert await client.check_health() is False
+
+
+async def test_check_health_requests_expected_path():
+    captured_request: dict = {}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        captured_request['url'] = str(request.url)
+        return httpx.Response(200, json={'status': 'ok'})
+
+    client = _client(handler)
+
+    await client.check_health()
+
+    assert captured_request['url'] == 'http://rag.test/api/v1/health'
