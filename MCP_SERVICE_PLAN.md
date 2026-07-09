@@ -166,15 +166,17 @@ vera_mcp_service/
 
 ---
 
-### Этап 1 — Клиент RAG Service ⏳
+### Этап 1 — Клиент RAG Service ✅ Выполнено (2026-07-09)
 
-- [ ] 1.1 `clients/rag_client.py` — асинхронная функция `search(query: str, audience: str, top_k: int) -> dict`: `POST {RAG_SERVICE_URL}/api/v1/search`, заголовок `X-API-Key: {RAG_SERVICE_API_KEY}` (обязателен на стороне RAG — без него `401`/`422`), JSON-тело `{"query", "audience", "top_k"}`, таймаут `RAG_SEARCH_TIMEOUT_SECONDS`. Принимает `httpx.AsyncClient` явным параметром (не создаёт свой) — клиент управляется `lifespan` в `main.py` (этап 5)
-- [ ] 1.2 `exceptions/rag.py` — `RagUnavailableError`: единое исключение для сетевой ошибки, таймаута, `5xx`, `429` (лимит 60 запросов/мин, `vera_rag_service/README.md`) и неожиданного формата ответа. Тот же принцип "для вызывающего кода все варианты равнозначны", что и `McpUnavailableError` на стороне Agent Service. `422` из RAG в норме не должен возникать от наших запросов — валидация аргументов отсекается раньше, на уровне самого тула (этап 2.2)
-- [ ] 1.3 Юнит-тесты `rag_client.py` на `httpx.MockTransport`: успех с непустыми чанками, успех с пустым `chunks: []` (не ошибка), таймаут → `RagUnavailableError`, `500`/`429` → `RagUnavailableError`, корректная передача заголовка `X-API-Key`
+- [x] 1.1 `clients/rag_client.py` — `POST {RAG_SERVICE_URL}/api/v1/search`, заголовок `X-API-Key: {RAG_SERVICE_API_KEY}`, JSON-тело `{"query", "audience", "top_k"}`, таймаут `RAG_SEARCH_TIMEOUT_SECONDS`. `httpx.AsyncClient` принимается через конструктор, не создаётся внутри — клиент будет управляться `lifespan` в `main.py` (этап 4)
+- [x] 1.2 `exceptions/rag.py` — `RagUnavailableError`: единое исключение для сетевой ошибки, таймаута, `5xx`, `429` и неожиданного формата ответа (пустой/невалидный JSON, отсутствие поля `chunks`)
+- [x] 1.3 Юнит-тесты `rag_client.py` на `httpx.MockTransport`: успех с непустыми чанками, успех с пустым `chunks: []` (не ошибка), корректная передача заголовка `X-API-Key` и тела запроса, таймаут → `RagUnavailableError`, сетевая ошибка соединения → `RagUnavailableError`, `500`/`429` → `RagUnavailableError`, невалидный JSON → `RagUnavailableError`, отсутствие поля `chunks` → `RagUnavailableError`
 
-**Definition of Done:** `search(...)` против мок-транспорта возвращает `dict` при успехе (включая пустой `chunks`) и бросает `RagUnavailableError` на любом из перечисленных сбоев — без исключений, которые не являются `RagUnavailableError`.
+**Definition of Done:** `search(...)` против мок-транспорта возвращает `dict` при успехе (включая пустой `chunks`) и бросает `RagUnavailableError` на любом из перечисленных сбоев — без исключений, которые не являются `RagUnavailableError`. ✅ 9/9 тестов зелёные, `ruff check .` чист.
 
 **Ссылки:** `vera_rag_service/README.md`, раздел `POST /api/v1/search` — точный контракт запроса/ответа, коды ошибок `422`/`500`/`429`.
+
+**Фактически сделано, с одним отклонением от исходного текста плана:** `rag_client.py` — не голая функция `search(...)`, а класс `RagClient(httpx_client, settings)` с методом `search()` — по образцу `FASTAPI_PATTERNS.md`, раздел 13 ("Клиенты внешних API": "один клиент = один внешний сервис, принимает готовый `httpx.AsyncClient` через конструктор"), тот же паттерн, что и в примере `ExternalApiClient` из раздела 18 (тесты клиентов). Класс, а не модульная функция — чище тестируется (свежий инстанс на тест с собственным `httpx.MockTransport`, без module-level состояния) и не требует протаскивать `httpx.AsyncClient`/`settings` через каждый вызов вручную. Второе отклонение — логирование: вместо полного текста запроса на `INFO` логируется только `query_length` (раздел 0.3, решение про PII — реализовано сразу, не отложено).
 
 ---
 
