@@ -1,31 +1,28 @@
-volumes:
-  phoenix_data:
+networks:
+  # Общая сеть для сквозной интеграции трёх сервисов (MCP_SERVICE_PLAN.md,
+  # Этап 8). Создаётся один раз вручную: `docker network create vera_network`
+  # — не управляется этим (или любым другим) отдельным docker-compose.yml,
+  # чтобы поднятие/остановка одного репозитория не рвало сеть соседям.
+  vera_network:
+    external: true
 
 services:
-  phoenix:
-    container_name: vera_mcp_phoenix
-    # Локальный Phoenix для разработки (MCP_SERVICE_PLAN.md, Этап 5) —
-    # опционально, не блокирует mcp_service (не в его depends_on).
-    # Порты 6006/4317 совпадают с Phoenix у vera_agent_service/vera_rag_service —
-    # при одновременном локальном запуске нескольких репозиториев конфликт портов
-    # неизбежен, пока не решён открытый вопрос об одном общем Phoenix-инстансе
-    # (MCP_SERVICE_PLAN.md, раздел 6, вопрос 1; Этап 8.3).
-    image: arizephoenix/phoenix:version-17.21.0
-    restart: always
-    volumes:
-      - phoenix_data:/mnt/data
-    environment:
-      PHOENIX_WORKING_DIR: /mnt/data
-    ports:
-      - "6006:6006"  # UI + OTLP/HTTP (см. PHOENIX_OTLP_ENDPOINT в .env.example)
-      - "4317:4317"  # OTLP/gRPC — не используется этим сервисом (HTTP-экспортёр), порт на будущее
-
   mcp_service:
     container_name: vera_mcp_service
     build: .
     env_file: .env
     environment:
-      PHOENIX_OTLP_ENDPOINT: http://phoenix:6006/v1/traces
+      # Резолвится по имени контейнера в общей сети (`vera_network`), а не
+      # `localhost` из `.env` (тот верен только для локальной разработки
+      # одного репозитория) — тот же паттерн, что и `RABBITMQ_HOST`/
+      # `REDIS_HOST` в `vera_agent_service/docker-compose.yml`.
+      RAG_SERVICE_URL: http://vera_rag_service:8000
+      # Этап 8.3 — дублирование Phoenix решено: единственный общий инстанс —
+      # `vera_agent_phoenix` (поднимается из vera_agent_service/docker-compose.yml).
+      # Собственный `phoenix`-сервис этого файла убран (был до Этапа 8) —
+      # два независимых Phoenix в одной сети не дают единого дерева трейса
+      # через все три сервиса, чего явно требует AGENT_VERA_ARCHITECTURE.md.
+      PHOENIX_OTLP_ENDPOINT: http://vera_agent_phoenix:6006/v1/traces
     restart: on-failure
     command: bash entrypoint.sh
     # Порт хоста отличается от vera_rag_service (8000) и vera_agent_service (8010),
@@ -39,3 +36,9 @@ services:
           # Сервис полностью stateless, без очереди/checkpointer'а (в отличие от
           # vera_agent_service, где лимит 1GB) — тоньше, placeholder-значение.
           memory: 512M
+    networks:
+      # `default` — неявная сеть этого compose-проекта (сейчас в ней больше
+      # никого нет, т.к. `phoenix` этого файла убран) + `vera_network` для
+      # связи с vera_agent_service/vera_rag_service.
+      - default
+      - vera_network
