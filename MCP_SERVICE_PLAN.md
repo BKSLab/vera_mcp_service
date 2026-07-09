@@ -270,13 +270,17 @@ vera_mcp_service/
 
 ---
 
-### Этап 7 — Docker-образ и деплой ⏳
+### Этап 7 — Docker-образ и деплой ✅ Выполнено (2026-07-09)
 
-- [ ] 7.1 Финальная сверка `Dockerfile`/`docker-compose.yml`/`entrypoint.sh` (доработаны в этапе 0) после того, как реализация устоялась — без build-тулчейна (нет C-расширений), непривилегированный пользователь, `HEALTHCHECK` на `/health`
-- [ ] 7.2 `docker compose up -d --build mcp_service` — реальная сборка и запуск, проверка `docker logs`/`docker inspect`
-- [ ] 7.3 `curl http://localhost:9000/health` (хост-порт) → `200`
+- [x] 7.1 Финальная сверка `Dockerfile`/`docker-compose.yml`/`entrypoint.sh` — без build-тулчейна, непривилегированный пользователь, `HEALTHCHECK` на `/health`
+- [x] 7.2 `docker compose up -d --build mcp_service` — реальная сборка и запуск. `docker logs`: чистый старт (`StreamableHTTP session manager started` → `Application startup complete` → `Uvicorn running on http://0.0.0.0:8000`). `docker inspect` → `State.Health.Status: healthy`
+- [x] 7.3 `curl http://localhost:9000/health` (хост-порт) → `200`, `{"status":"ok","rag_service":"unreachable"}`
 
-**Definition of Done:** `docker compose up -d --build` поднимает `mcp_service`, `GET /health` отвечает `200`.
+**Definition of Done:** `docker compose up -d --build` поднимает `mcp_service`, `GET /health` отвечает `200`. ✅ Подтверждено полным реальным циклом, включая `MultiServerMCPClient` из хоста против контейнера — контейнер остановлен и удалён после проверки (`docker compose down`), не оставлен висеть.
+
+**Фактически сделано, с находкой (тот же класс проблемы, что уже был у `vera_agent_service` на его Этапе 11):**
+
+Вызов `kb_search` через настоящий `MultiServerMCPClient` с хоста против запущенного контейнера (`http://localhost:9000/mcp`) корректно долетел до тула и вернул `_MCPToolExecutionError`, но с текстом `HTTP 404: Not Found`, а не ожидаемой сетевой ошибкой — потому что `.env` содержит `RAG_SERVICE_URL=http://localhost:8000`, что верно для локальной разработки на хосте, но не для контейнера: внутри Docker-сети `localhost` означает сам контейнер `mcp_service`, который слушает `:8000` сам себя (MCP-эндпоинт), а не RAG Service. Запрос `POST /api/v1/search` попал на собственный сервис контейнера, который такого маршрута не имеет — отсюда `404`. Ожидаемо и не является багом: `docker-compose.yml` этого репозитория сознательно не переопределяет `RAG_SERVICE_URL` (RAG Service — не часть этого compose-файла), правильный адрес (`http://vera_rag_service:8000` в общей сети) — задача Этапа 8, не этого. Контракт при этом отработал верно в любом случае: **любой** сбой RAG Service (включая "постучались не туда") превращается в `RagUnavailableError` → `_MCPToolExecutionError` на стороне клиента, не в тихий пустой результат — то, ради чего строился весь контракт (раздел 0.1).
 
 ---
 
