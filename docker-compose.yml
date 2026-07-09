@@ -1,0 +1,41 @@
+volumes:
+  phoenix_data:
+
+services:
+  phoenix:
+    container_name: vera_mcp_phoenix
+    # Локальный Phoenix для разработки (MCP_SERVICE_PLAN.md, Этап 5) —
+    # опционально, не блокирует mcp_service (не в его depends_on).
+    # Порты 6006/4317 совпадают с Phoenix у vera_agent_service/vera_rag_service —
+    # при одновременном локальном запуске нескольких репозиториев конфликт портов
+    # неизбежен, пока не решён открытый вопрос об одном общем Phoenix-инстансе
+    # (MCP_SERVICE_PLAN.md, раздел 6, вопрос 1; Этап 8.3).
+    image: arizephoenix/phoenix:version-17.21.0
+    restart: always
+    volumes:
+      - phoenix_data:/mnt/data
+    environment:
+      PHOENIX_WORKING_DIR: /mnt/data
+    ports:
+      - "6006:6006"  # UI + OTLP/HTTP (см. PHOENIX_OTLP_ENDPOINT в .env.example)
+      - "4317:4317"  # OTLP/gRPC — не используется этим сервисом (HTTP-экспортёр), порт на будущее
+
+  mcp_service:
+    container_name: vera_mcp_service
+    build: .
+    env_file: .env
+    environment:
+      PHOENIX_OTLP_ENDPOINT: http://phoenix:6006/v1/traces
+    restart: on-failure
+    command: bash entrypoint.sh
+    # Порт хоста отличается от vera_rag_service (8000) и vera_agent_service (8010),
+    # чтобы все три сервиса могли работать локально одновременно без конфликта портов —
+    # 9000 совпадает с MCP_SERVER_URL по умолчанию в vera_agent_service/.env.example.
+    ports:
+      - "9000:8000"
+    deploy:
+      resources:
+        limits:
+          # Сервис полностью stateless, без очереди/checkpointer'а (в отличие от
+          # vera_agent_service, где лимит 1GB) — тоньше, placeholder-значение.
+          memory: 512M

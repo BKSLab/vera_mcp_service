@@ -1,0 +1,11 @@
+-r requirements.txt
+
+# Только для интеграционных тестов (MCP_SERVICE_PLAN.md, Этап 3) — клиент
+# против собственного streamable-http сервера этого репозитория, тот же
+# пакет, что уже проверен и используется в vera_agent_service.
+langchain-mcp-adapters==0.3.0
+
+pytest==9.1.1
+pytest-asyncio==1.4.0
+pytest-cov==7.1.0
+ruff==0.15.20
