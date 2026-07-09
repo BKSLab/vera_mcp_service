@@ -1,0 +1,35 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  lint-and-test:
+    runs-on: ubuntu-latest
+
+    env:
+      # RAG Service не поднимается в CI — все обращения замоканы
+      # (httpx.MockTransport, tests/unit) или идут на стаб-сервер,
+      # поднимаемый самими тестами на свободном порту (tests/integration).
+      # Значения ниже нужны только чтобы Settings() сконструировался при импорте.
+      RAG_SERVICE_URL: http://localhost:9/api/v1
+      RAG_SERVICE_API_KEY: ci-rag-api-key
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+
+      - name: Установка зависимостей
+        run: pip install -r requirements-dev.txt
+
+      - name: Линтер (ruff)
+        run: ruff check .
+
+      - name: Тесты (unit + integration)
+        run: pytest tests/ -v

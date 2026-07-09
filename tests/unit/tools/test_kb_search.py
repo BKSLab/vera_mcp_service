@@ -1,10 +1,14 @@
+import asyncio
 import json
 from unittest.mock import AsyncMock
 
+import httpx
 import pytest
 from mcp.server.fastmcp import FastMCP
 from mcp.server.fastmcp.exceptions import ToolError
 
+from app.clients.rag_client import RagClient
+from app.core.settings import RagClientSettings
 from app.exceptions.rag import RagUnavailableError
 from app.tools.kb_search import register_kb_search
 
@@ -103,3 +107,30 @@ async def test_register_kb_search_sets_non_empty_description():
 
     assert kb_search_tool.description
     assert 'audience' in kb_search_tool.description
+
+
+async def test_concurrent_kb_search_calls_do_not_share_state():
+    """Дёшево поставить сейчас как привычку/шаблон для будущих тулов —
+    дороже добавлять после первого бага с shared mutable state в новом
+    тule (MCP_SERVICE_PLAN.md, Этап 6.5)."""
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        body = json.loads(request.content)
+        query = body['query']
+        return httpx.Response(200, json={'chunks': [{'chunk_id': query}]})
+
+    httpx_client = httpx.AsyncClient(transport=httpx.MockTransport(handler))
+    settings = RagClientSettings(
+        rag_service_url='http://rag.test',
+        rag_service_api_key='test-api-key',
+        rag_search_timeout_seconds=5.0,
+        rag_search_top_k=5,
+    )
+    rag_client = RagClient(httpx_client=httpx_client, settings=settings)
+    mcp = _mcp_with_fake_rag_client(rag_client)
+
+    queries = [f'query-{i}' for i in range(20)]
+    results = await asyncio.gather(*(mcp.call_tool('kb_search', {'query': q}) for q in queries))
+
+    parsed = [json.loads(result[0].text) for result in results]
+    assert [payload['chunks'][0]['chunk_id'] for payload in parsed] == queries
