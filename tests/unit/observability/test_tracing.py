@@ -6,7 +6,7 @@ from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanE
 from app.clients.rag_client import RagClient
 from app.core.settings import RagClientSettings
 from app.observability.tracing import reset_for_tests
-from app.tools.kb_search import register_kb_search
+from app.tools.vera_rag_kb import register_vera_rag_kb
 
 # `set_tracer_provider()` можно успешно вызвать только один раз за процесс
 # (см. docstring `reset_for_tests`) — настраиваем провайдер один раз на
@@ -53,22 +53,22 @@ async def test_rag_search_creates_named_span():
 
 async def test_kb_search_tool_call_creates_span_with_tool_name_attribute():
     mcp = FastMCP('test-tracing')
-    register_kb_search(mcp, _rag_client(), top_k=5)
+    register_vera_rag_kb(mcp, _rag_client(), top_k=5)
 
-    await mcp.call_tool('kb_search', {'query': 'квота'})
+    await mcp.call_tool('vera_rag_kb', {'query': 'квота'})
 
     tool_call_spans = [span for span in _exporter.get_finished_spans() if span.name == 'mcp.tool_call']
     assert len(tool_call_spans) == 1
-    assert tool_call_spans[0].attributes['mcp.tool_name'] == 'kb_search'
+    assert tool_call_spans[0].attributes['mcp.tool_name'] == 'vera_rag_kb'
 
 
 async def test_kb_search_span_tree_matches_architecture_doc():
     """Дерево должно совпасть с примером в `AGENT_VERA_ARCHITECTURE.md`,
-    раздел "Observability": `[span] mcp.tool_call: kb_search └── [span] rag.search`."""
+    раздел "Observability": `[span] mcp.tool_call: vera_rag_kb └── [span] rag.search`."""
     mcp = FastMCP('test-tracing')
-    register_kb_search(mcp, _rag_client(), top_k=5)
+    register_vera_rag_kb(mcp, _rag_client(), top_k=5)
 
-    await mcp.call_tool('kb_search', {'query': 'квота'})
+    await mcp.call_tool('vera_rag_kb', {'query': 'квота'})
 
     spans = {span.name: span for span in _exporter.get_finished_spans()}
     assert set(spans) == {'mcp.tool_call', 'rag.search'}

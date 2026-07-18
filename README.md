@@ -6,12 +6,12 @@ MCP Tools Server — инструментальный слой между Agent 
 
 Последний из трёх сервисов архитектуры ассистента (`AGENT_VERA_ARCHITECTURE.md`): **Agent Service** (`vera_agent_service`, оркестратор, production-ready) → **MCP Tools Server** (этот репозиторий) → **RAG Service** (`vera_rag_service`, семантический поиск по базе знаний, production-ready). Оба соседних контракта уже зафиксированы кодом по обе стороны — этот сервис реализует тонкую прослойку по готовому ТЗ, а не проектирует контракт с нуля.
 
-Итерация 1: единственный инструмент — `kb_search` (поиск по базе знаний), доступен без авторизации. Полная история решений, находок и статус по этапам — `MCP_SERVICE_PLAN.md`.
+Итерация 1: единственный инструмент — `vera_rag_kb` (поиск по базе знаний Vera RAG), доступен без авторизации. Полная история решений, находок и статус по этапам — `MCP_SERVICE_PLAN.md`.
 
 ## Как это работает
 
 1. **Приём вызова** — `FastMCP` (`mcp.server.fastmcp`), транспорт `streamable-http`, работает автономно (`mcp.run(transport="streamable-http")`) — без FastAPI, по образцу проверенного на масштабе in-house проекта `tools-mcp` (см. план, раздел 0.1). Agent Service подключается через `MultiServerMCPClient` на `/mcp`.
-2. **Инструмент `kb_search`** (`app/tools/kb_search.py`) — тонкий адаптер: валидация аргументов (`query` непустой, `audience` — `Literal['seeker', 'employer', 'both']`) через Pydantic-схему MCP, затем вызов `RagClient.search()`. Никакого `try/except` вокруг вызова — при сбое RAG Service исключение всплывает как есть: Agent Service (`handle_tool_errors=False`) ждёт именно исключение MCP-уровня, не `dict` с полем ошибки.
+2. **Инструмент `vera_rag_kb`** (`app/tools/vera_rag_kb.py`) — тонкий адаптер: валидация аргументов (`query` непустой, `audience` — `Literal['seeker', 'employer', 'both']`) через Pydantic-схему MCP, затем вызов `RagClient.search()`. Никакого `try/except` вокруг вызова — при сбое RAG Service исключение всплывает как есть: Agent Service (`handle_tool_errors=False`) ждёт именно исключение MCP-уровня, не `dict` с полем ошибки.
 3. **Реестр тулов** (`app/tools/__init__.py::register_all_tools`) — единственное место, которое трогают при добавлении нового инструмента (итерация 2: `get_user_favorites`, `search_vacancies`, `find_similar_vacancies`). Сопровождается meta-тестом (`tests/unit/tools/test_registry.py`), ловящим забытую регистрацию/дублирование имени.
 4. **Клиент RAG Service** (`app/clients/rag_client.py`) — `POST /api/v1/search` с `X-API-Key`. Без собственного слоя ретраев: Agent Service уже ретраит вызов тула целиком, RAG Service ретраит embedding/reranker внутри себя — ещё один слой был бы «ретраями в квадрате».
 5. **`GET /health`** — реестр проверок (`app/health.py::HealthRegistry`), тот же принцип расширяемости, что и у реестра тулов. Код ответа всегда `200`, недоступность RAG Service отражается только в теле (`{"status": "ok", "rag_service": "unreachable"}`) — сервис не падает из-за деградации соседа.
@@ -27,8 +27,8 @@ MCP Tools Server — инструментальный слой между Agent 
 
 | Контракт | Кто использует | Кратко |
 |---|---|---|
-| Тул `kb_search` (MCP, streamable-http) | Agent Service → этот сервис | `kb_search(query: str, audience: "seeker"\|"employer"\|"both" = "both") -> {"chunks": [...]}` — пустой список `chunks` валиден («нет ответа»), не ошибка. При сбое — исключение MCP-уровня, не `dict` с полем ошибки |
-| `POST /api/v1/search` | Этот сервис → RAG Service | `{"query", "audience", "top_k"}` → `{"chunks": [...]}`, заголовок `X-API-Key`. Формат ответа дословно совпадает с тем, что ожидает Agent Service от `kb_search` — прозрачный проброс, без трансформации полей |
+| Тул `vera_rag_kb` (MCP, streamable-http) | Agent Service → этот сервис | `vera_rag_kb(query: str, audience: "seeker"\|"employer"\|"both" = "both") -> {"chunks": [...]}` — пустой список `chunks` валиден («нет ответа»), не ошибка. При сбое — исключение MCP-уровня, не `dict` с полем ошибки |
+| `POST /api/v1/search` | Этот сервис → RAG Service | `{"query", "audience", "top_k"}` → `{"chunks": [...]}`, заголовок `X-API-Key`. Формат ответа дословно совпадает с тем, что ожидает Agent Service от `vera_rag_kb` — прозрачный проброс, без трансформации полей |
 | `GET /health` | Оркестратор/мониторинг | `{"status": "ok", "rag_service": "ok"\|"unreachable"}` — код ответа всегда `200` |
 
 ## Запуск локально
@@ -49,6 +49,9 @@ docker compose up -d --build
 
 Локально без Docker (venv):
 
+Перед запуском переключить endpoint-блок в `.env`: закомментировать активные
+production-адреса и раскомментировать строки из секции `Local endpoints`.
+
 ```bash
 python -m venv venv
 venv\Scripts\activate                # Windows; source venv/bin/activate — Linux/macOS
@@ -59,13 +62,14 @@ python -m app.main
 
 ### Совместный запуск с Agent Service/RAG Service
 
-Для реальной сквозной интеграции трём сервисам нужна общая Docker-сеть (создаётся один раз, не управляется ни одним отдельным `docker-compose.yml`):
+Общая внешняя Docker-сеть больше не используется. Все сервисы развёртываются
+на production-хосте `91.218.115.104` и обращаются друг к другу через его
+опубликованные порты: Agent → MCP — `http://91.218.115.104:9000/mcp`,
+MCP → RAG — `http://91.218.115.104:8002`, MCP → Phoenix —
+`http://91.218.115.104:6006/v1/traces`.
 
-```bash
-docker network create vera_network
-```
-
-После этого `docker compose up -d` в каждом из трёх репозиториев (`vera_agent_service`, `vera_mcp_service`, `vera_rag_service`) — сервисы видят друг друга по имени контейнера (`vera_mcp_service`, `vera_rag_service`, `vera_agent_phoenix`). Подробности и подтверждённые находки — `MCP_SERVICE_PLAN.md`, Этап 8.
+В `.env` активна секция `Production endpoints`; секция `Local endpoints`
+предназначена только для запуска `python -m app.main` непосредственно на хосте.
 
 ## Тестирование
 
@@ -96,7 +100,7 @@ ruff check .                 # линтер
 Локально и функционально всё готово и проверено (см. «Статус» ниже) — но это не значит готовность к реальному прод-деплою. По приоритету, сверху вниз:
 
 **P0 — блокирует полностью:**
-- **Провижининг БД в `vera_rag_service` не работает в текущем окружении** (`InvalidCatalogNameError: database "vera_rag_service" does not exist`) — реальный `kb_search` с живыми данными невозможен, пока это не починено в том репозитории. MCP-протокол, контракт и сетевая связность подтверждены рабочими независимо от этого блокера (`MCP_SERVICE_PLAN.md`, Этап 8/9) — сам этот сервис не является причиной.
+- **Провижининг БД в `vera_rag_service` не работает в текущем окружении** (`InvalidCatalogNameError: database "vera_rag_service" does not exist`) — реальный `vera_rag_kb` с живыми данными невозможен, пока это не починено в том репозитории. MCP-протокол, контракт и сетевая связность подтверждены рабочими независимо от этого блокера (`MCP_SERVICE_PLAN.md`, Этап 8/9) — сам этот сервис не является причиной.
 - **`RAG_SERVICE_API_KEY` — плейсхолдер** в `.env`/`.env.example` обоих репозиториев — нужно реальное значение.
 
 **P1 — инфраструктура сейчас dev-уровня, не прод:**
@@ -108,7 +112,7 @@ ruff check .                 # линтер
 - Единое дерево трейса через все три сервиса в живом Phoenix — топология сети подтверждена, реальный сквозной трейс через RabbitMQ/Agent/MCP/RAG — нет (упирается в P0).
 - Полный путь `Agent → MCP → RAG` с реальным контентом никогда не прогонялся целиком — упирается в P0.
 
-**Осознанно не блокер:** per-tool retry-политика для будущих мутирующих тулов итерации 3+ не решена — не актуально, пока единственный тул (`kb_search`) read-only и идемпотентен; уже задокументировано в `MCP_SERVICE_PLAN.md` (раздел 0.3, риски) как задача, которую нужно решить до итерации 3+, не забытый пробел.
+**Осознанно не блокер:** per-tool retry-политика для будущих мутирующих тулов итерации 3+ не решена — не актуально, пока единственный тул (`vera_rag_kb`) read-only и идемпотентен; уже задокументировано в `MCP_SERVICE_PLAN.md` (раздел 0.3, риски) как задача, которую нужно решить до итерации 3+, не забытый пробел.
 
 ## Статус
 

@@ -4,7 +4,9 @@
 >
 > **Как отчитываться:** каждая подзадача — отдельный чек-бокс `- [ ]` с номером `N.M`. Отмечаем `[x]` только когда подзадача реально сделана и (если применимо) покрыта тестом. По мере работы статус каждого этапа меняется на ✅/🔶/⏳ прямо в заголовке этапа, а под чек-листом добавляется абзац "Фактически сделано" с находками — по образцу `vera_agent_service/AGENT_SERVICE_PLAN.md` и `vera_rag_service/RAG_SERVICE_PLAN.md`. Каждый этап закрывается только при выполнении своего "Definition of Done".
 >
-> **Итерация:** 1 — единственный инструмент `kb_search`, доступ без авторизации. Инструменты итерации 2 (`get_user_favorites`, `search_vacancies`, `find_similar_vacancies`) и далее — вне рамок этого плана, но структура сервиса (раздел 1, 0.1) спроектирована так, чтобы их добавление не требовало переработки.
+> **Обновление контракта, 2026-07-18:** MCP-инструмент и связанные внутренние имена изменены с `kb_search` на `vera_rag_kb` (`vera_rag_kb.py`, `register_vera_rag_kb`). Прежнее имя в исторических записях ниже следует читать как `vera_rag_kb`. Agent Service требует синхронного обновления резолвинга инструмента.
+>
+> **Итерация:** 1 — единственный инструмент `vera_rag_kb`, доступ без авторизации. Инструменты итерации 2 (`get_user_favorites`, `search_vacancies`, `find_similar_vacancies`) и далее — вне рамок этого плана, но структура сервиса (раздел 1, 0.1) спроектирована так, чтобы их добавление не требовало переработки.
 >
 > **Источники:**
 > - `AGENT_VERA_ARCHITECTURE.md` (этот репозиторий) — архитектурная концепция, роль MCP Tools Server в трёхсервисной системе.
@@ -121,7 +123,7 @@ vera_mcp_service/
 │   ├── tools/
 │   │   ├── __init__.py          # register_all_tools(mcp: FastMCP) -> None — явный список вызовов,
 │   │   │                        #   единственное место, которое трогают при добавлении нового тула
-│   │   └── kb_search.py         # _kb_search(...) + register_kb_search(mcp) — итерация 1
+│   │   └── vera_rag_kb.py       # vera_rag_kb(...) + register_vera_rag_kb(mcp) — итерация 1
 │   ├── clients/
 │   │   └── rag_client.py        # httpx.AsyncClient, X-API-Key, POST /api/v1/search
 │   │                             #   (один файл на внешнюю систему — итерация 2 добавит dadata_client.py и т.п.)
@@ -142,7 +144,7 @@ vera_mcp_service/
 └── MCP_SERVICE_PLAN.md                # этот файл
 ```
 
-**Отклонение от `FASTAPI_PATTERNS.md`:** сервис не на FastAPI (раздел 0.1) — слои `db/`, `repositories/`, `services/`, `admin/`, `background_tasks/`, `api/v1/endpoints/`, `dependencies/` не заводятся. Роль "сервисного" слоя выполняет сам инструмент (`tools/kb_search.py`) поверх клиента (`clients/rag_client.py`). Отдельный `services/`-слой между `tools/` и `clients/` сознательно не заводится для одного прозрачного проксирующего тула — станет оправданным, когда у первого тула итерации 2 появится реальная бизнес-логика поверх клиента (например, `search_vacancies` с нормализацией локации через Dadata — это уже не голый проброс).
+**Отклонение от `FASTAPI_PATTERNS.md`:** сервис не на FastAPI (раздел 0.1) — слои `db/`, `repositories/`, `services/`, `admin/`, `background_tasks/`, `api/v1/endpoints/`, `dependencies/` не заводятся. Роль "сервисного" слоя выполняет сам инструмент (`tools/vera_rag_kb.py`) поверх клиента (`clients/rag_client.py`). Отдельный `services/`-слой между `tools/` и `clients/` сознательно не заводится для одного прозрачного проксирующего тула — станет оправданным, когда у первого тула итерации 2 появится реальная бизнес-логика поверх клиента (например, `search_vacancies` с нормализацией локации через Dadata — это уже не голый проброс).
 
 ---
 
@@ -182,7 +184,7 @@ vera_mcp_service/
 
 ### Этап 2 — Инструмент `kb_search` и реестр тулов ✅ Выполнено (2026-07-09)
 
-- [x] 2.1 `tools/kb_search.py` — `register_kb_search(mcp, rag_client, top_k)`, регистрирует замыкание `kb_search(query, audience="both")` через `mcp.add_tool(...)` с развёрнутым `description`
+- [x] 2.1 `tools/vera_rag_kb.py` — `register_vera_rag_kb(mcp, rag_client, top_k)`, регистрирует замыкание `vera_rag_kb(query, audience="both")` через `mcp.add_tool(...)` с развёрнутым `description`
 - [x] 2.2 `tools/__init__.py::register_all_tools(mcp, rag_client, rag_top_k)`
 - [x] 2.3 Никакого `try/except` вокруг `rag_client.search()` внутри `kb_search` — исключение всплывает как есть
 - [x] 2.4 Валидация аргументов: `audience: Literal['seeker', 'employer', 'both']` (открытый вопрос 4 — решение принято: `Literal` не ломает резолвинг тула на стороне Agent Service, проверено юнит-тестами); `query: Annotated[str, Field(min_length=1)]` — пустая строка отклоняется до вызова `rag_client`. Оба варианта подтверждены эмпирически через `mcp.call_tool(...)`: невалидные аргументы бросают `ToolError` до входа в тело функции, `rag_client.search` не вызывается
@@ -193,7 +195,7 @@ vera_mcp_service/
 
 **Фактически сделано, с отклонениями от исходного текста плана и находками:**
 
-- **`register_kb_search` принимает `rag_client`/`top_k` параметрами, не читает их из модуля/глобальных настроек** — явная передача зависимостей вместо скрытого module-level состояния (согласуется с решением раздела 0.1 "без DI-фреймворка": зависимости передаются явно через конструктор/параметры, а не через контейнер). `RagClient` создаётся в `main.py` (Этап 4) и передаётся в `register_all_tools`.
+- **`register_vera_rag_kb` принимает `rag_client`/`top_k` параметрами, не читает их из модуля/глобальных настроек** — явная передача зависимостей вместо скрытого module-level состояния (согласуется с решением раздела 0.1 "без DI-фреймворка": зависимости передаются явно через конструктор/параметры, а не через контейнер). `RagClient` создаётся в `main.py` (Этап 4) и передаётся в `register_all_tools`.
 - **Находка (важна для Этапа 3):** `mcp.call_tool(name, arguments)` — высокоуровневый in-process API `FastMCP`, отличный от реального MCP/JSON-RPC пути через `MultiServerMCPClient`. При невалидных аргументах или исключении внутри функции тула он оборачивает ошибку в `mcp.server.fastmcp.exceptions.ToolError`, не позволяя ей проскочить как "успешный" результат — то есть **на этом уровне** контракт "исключение, не dict" уже подтверждён. Но это не тождественно реальному протокольному пути (content-блоки + `handle_tool_errors=False` на клиенте) — тот отдельно верифицируется в Этапе 3 против настоящего `MultiServerMCPClient`, не заменяется этой находкой.
 - **Успешный `mcp.call_tool(...)` возвращает `list[TextContent]`, не `dict` напрямую** — подтверждено эмпирически (`result[0].text` — JSON-строка). Согласуется с тем, что уже задокументировано на стороне Agent Service (`_parse_tool_result`, `mcp_client.py:173-189`) — то же поведение протокола, не специфика нашей реализации.
 - **Тесты реестра (`tests/unit/tools/test_registry.py`)** — на этом этапе уже написан минимальный вариант meta-теста, который в плане был запланирован на Этап 6.4 (проверка набора имён тулов, отсутствия дублей, непустых описаний). Написан сразу, а не отложен — дешевле поддерживать по ходу добавления тулов, чем добавлять задним числом. Этап 6.4 при выполнении сверяется с этим файлом, а не переписывает его заново.
@@ -243,7 +245,7 @@ vera_mcp_service/
 Из `AGENT_VERA_ARCHITECTURE.md`, раздел "Observability" — этому сервису отведены **ручные** spans на каждый вызов тула (в отличие от Agent Service, где основной объём покрывает автоинструментация `LangChainInstrumentor` — здесь такой автоинструментации нет, `mcp`/`FastMCP` ею не покрываются).
 
 - [x] 5.1 `observability/tracing.py` — `TracerProvider` + OTLP/HTTP экспортёр в `PHOENIX_OTLP_ENDPOINT`, `configure_tracing()`/`get_tracer()`/`reset_for_tests()` — по образцу `vera_agent_service/app/observability/tracing.py` (без `openinference`/`LangChainInstrumentor` — не нужны, здесь нет LangChain)
-- [x] 5.2 Span `mcp.tool_call` (атрибут `mcp.tool_name=kb_search`) вокруг вызова тула (`app/tools/kb_search.py`), вложенный span `rag.search` вокруг тела `RagClient.search()` (`app/clients/rag_client.py`) — дерево подтверждено тестом: `mcp.tool_call: kb_search └── rag.search`
+- [x] 5.2 Span `mcp.tool_call` (атрибут `mcp.tool_name=vera_rag_kb`) вокруг вызова тула (`app/tools/vera_rag_kb.py`), вложенный span `rag.search` вокруг тела `RagClient.search()` (`app/clients/rag_client.py`) — дерево подтверждено тестом: `mcp.tool_call: vera_rag_kb └── rag.search`
 - [x] 5.3 Юнит-тесты (`tests/unit/observability/test_tracing.py`): оба спана создаются с ожидаемыми именами/атрибутом, вложенность подтверждена сравнением `rag_search_span.parent.span_id == tool_call_span.context.span_id`
 
 **Definition of Done:** тестовый вызов `kb_search` виден span-деревом `mcp.tool_call → rag.search` с корректной вложенностью. ✅ 38/38 тестов проекта зелёные (дважды подряд), `ruff check .` чист. Реальная проверка в живом Phoenix (аналог того, что делал Agent Service на своём Этапе 9) — не выполнялась в этой сессии, локальный Phoenix не поднимался; структура спанов верифицирована через `InMemorySpanExporter`, что и было целью этого этапа.

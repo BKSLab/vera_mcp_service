@@ -6,7 +6,7 @@
 Agent Service ждёт исключение MCP-уровня при сбое, не `dict` с полем
 ошибки — и это нужно подтвердить эмпирически против настоящего
 MCP/streamable-http протокола, не только юнит-тестом на уровне Python-функции
-(tests/unit/tools/test_kb_search.py, Этап 2).
+(tests/unit/tools/test_vera_rag_kb.py, Этап 2).
 """
 
 import asyncio
@@ -118,7 +118,7 @@ async def test_kb_search_returns_dict_with_chunks_on_success():
     async with _run_server(app) as url:
         client = _mcp_client(url)
         tools = await client.get_tools()
-        (kb_search,) = [tool for tool in tools if tool.name == 'kb_search']
+        (kb_search,) = [tool for tool in tools if tool.name == 'vera_rag_kb']
 
         result = await kb_search.ainvoke({'query': 'квота', 'audience': 'both'})
 
@@ -133,7 +133,7 @@ async def test_kb_search_returns_empty_chunks_as_valid_result_not_error():
     async with _run_server(app) as url:
         client = _mcp_client(url)
         tools = await client.get_tools()
-        (kb_search,) = [tool for tool in tools if tool.name == 'kb_search']
+        (kb_search,) = [tool for tool in tools if tool.name == 'vera_rag_kb']
 
         result = await kb_search.ainvoke({'query': 'непонятный вопрос', 'audience': 'both'})
 
@@ -148,7 +148,7 @@ async def test_kb_search_raises_exception_not_error_dict_when_rag_unreachable():
     async with _run_server(app) as url:
         client = _mcp_client(url)
         tools = await client.get_tools()
-        (kb_search,) = [tool for tool in tools if tool.name == 'kb_search']
+        (kb_search,) = [tool for tool in tools if tool.name == 'vera_rag_kb']
 
         with pytest.raises(_MCPToolExecutionError):
             await kb_search.ainvoke({'query': 'квота', 'audience': 'both'})
@@ -162,7 +162,7 @@ async def test_kb_search_raises_exception_not_error_dict_when_rag_returns_500():
     async with _run_server(app) as url:
         client = _mcp_client(url)
         tools = await client.get_tools()
-        (kb_search,) = [tool for tool in tools if tool.name == 'kb_search']
+        (kb_search,) = [tool for tool in tools if tool.name == 'vera_rag_kb']
 
         with pytest.raises(_MCPToolExecutionError):
             await kb_search.ainvoke({'query': 'квота', 'audience': 'both'})

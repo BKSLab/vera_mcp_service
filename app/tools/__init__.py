@@ -1,7 +1,7 @@
 from mcp.server.fastmcp import FastMCP
 
 from app.clients.rag_client import RagClient
-from app.tools.kb_search import register_kb_search
+from app.tools.vera_rag_kb import register_vera_rag_kb
 
 
 def register_all_tools(mcp: FastMCP, rag_client: RagClient, rag_top_k: int) -> None:
@@ -12,4 +12,4 @@ def register_all_tools(mcp: FastMCP, rag_client: RagClient, rag_top_k: int) -> N
     Итерация 1 — один тул; итерация 2 добавит сюда
     `register_get_user_favorites(mcp, ...)`, `register_search_vacancies(mcp, ...)` и т.д.
     """
-    register_kb_search(mcp, rag_client, top_k=rag_top_k)
+    register_vera_rag_kb(mcp, rag_client, top_k=rag_top_k)

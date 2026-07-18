@@ -16,7 +16,7 @@ def configure_tracing(settings: ObservabilitySettings) -> TracerProvider:
 
     В отличие от Agent Service здесь нет автоинструментации — `mcp`/`FastMCP`
     ею не покрываются (`AGENT_VERA_ARCHITECTURE.md`, раздел "Observability") —
-    только ручные spans на границах: `mcp.tool_call` (`app/tools/kb_search.py`)
+    только ручные spans на границах: `mcp.tool_call` (`app/tools/vera_rag_kb.py`)
     и вложенный `rag.search` (`app/clients/rag_client.py`).
 
     Идемпотентна — повторный вызов возвращает уже созданный `TracerProvider`,

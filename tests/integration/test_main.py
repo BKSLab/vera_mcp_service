@@ -76,4 +76,4 @@ async def test_health_and_kb_search_tool_on_real_server():
         )
         tools = await mcp_client.get_tools()
 
-        assert {tool.name for tool in tools} == {'kb_search'}
+        assert {tool.name for tool in tools} == {'vera_rag_kb'}

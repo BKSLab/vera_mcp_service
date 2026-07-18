@@ -4,7 +4,7 @@ from mcp.server.fastmcp import FastMCP
 
 from app.tools import register_all_tools
 
-EXPECTED_TOOL_NAMES = {'kb_search'}
+EXPECTED_TOOL_NAMES = {'vera_rag_kb'}
 """Единственное место, которое обязательно нужно обновить при добавлении
 нового тула (MCP_SERVICE_PLAN.md, раздел 0.3 — meta-тест реестра тулов)."""
 
