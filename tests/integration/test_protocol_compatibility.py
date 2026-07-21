@@ -12,19 +12,28 @@ MCP/streamable-http протокола, не только юнит-тестом 
 import asyncio
 import json
 import socket
-from collections.abc import AsyncIterator
+from collections.abc import AsyncIterator, Awaitable, Callable
 from contextlib import asynccontextmanager
 
 import httpx
 import pytest
 import uvicorn
 from langchain_mcp_adapters.client import MultiServerMCPClient
+from langchain_mcp_adapters.interceptors import (
+    MCPToolCallRequest,
+    MCPToolCallResult,
+)
 from langchain_mcp_adapters.tools import _MCPToolExecutionError
 from mcp.server.fastmcp import FastMCP
+from opentelemetry import propagate, trace
+from opentelemetry.sdk.trace import TracerProvider
+from opentelemetry.sdk.trace.export import SimpleSpanProcessor
+from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
 from sse_starlette.sse import AppStatus
 
 from app.clients.rag_client import RagClient
 from app.core.settings import RagClientSettings
+from app.observability.tracing import get_tracer, reset_for_tests
 from app.tools import register_all_tools
 
 
@@ -97,7 +106,16 @@ def _parse_tool_result(raw_result: object) -> dict:
     return json.loads(raw_result[0]['text'])
 
 
-def _mcp_client(url: str) -> MultiServerMCPClient:
+async def _inject_trace_context(
+    request: MCPToolCallRequest,
+    handler: Callable[[MCPToolCallRequest], Awaitable[MCPToolCallResult]],
+) -> MCPToolCallResult:
+    headers = dict(request.headers or {})
+    propagate.inject(headers)
+    return await handler(request.override(headers=headers))
+
+
+def _mcp_client(url: str, with_tracing: bool = False) -> MultiServerMCPClient:
     return MultiServerMCPClient(
         {
             'vera-tools': {
@@ -107,7 +125,18 @@ def _mcp_client(url: str) -> MultiServerMCPClient:
             }
         },
         handle_tool_errors=False,
+        tool_interceptors=[_inject_trace_context] if with_tracing else None,
     )
+
+
+def _attach_exporter() -> InMemorySpanExporter:
+    exporter = InMemorySpanExporter()
+    provider = trace.get_tracer_provider()
+    if isinstance(provider, TracerProvider):
+        provider.add_span_processor(SimpleSpanProcessor(exporter))
+    else:
+        reset_for_tests(exporter)
+    return exporter
 
 
 async def test_kb_search_returns_dict_with_chunks_on_success():
@@ -166,3 +195,48 @@ async def test_kb_search_raises_exception_not_error_dict_when_rag_returns_500():
 
         with pytest.raises(_MCPToolExecutionError):
             await kb_search.ainvoke({'query': 'квота', 'audience': 'both'})
+
+
+async def test_streamable_http_preserves_isolated_trace_context_to_mcp_and_rag():
+    exporter = _attach_exporter()
+    outgoing_rag_headers: dict[str, dict[str, str]] = {}
+
+    def rag_handler(request: httpx.Request) -> httpx.Response:
+        query = json.loads(request.content)['query']
+        outgoing_rag_headers[query] = dict(request.headers)
+        return httpx.Response(200, json={'chunks': []})
+
+    app = _build_mcp_app(rag_handler)
+    async with _run_server(app) as url:
+        client = _mcp_client(url, with_tracing=True)
+        tools = await client.get_tools()
+        (kb_search,) = [tool for tool in tools if tool.name == 'vera_rag_kb']
+        parent_contexts = {}
+
+        async def call(query: str) -> None:
+            with get_tracer().start_as_current_span(f'agent.{query}') as parent:
+                parent_contexts[query] = parent.get_span_context()
+                await kb_search.ainvoke({'query': query, 'audience': 'both'})
+
+        await asyncio.gather(call('first'), call('second'))
+
+    mcp_spans = [
+        span
+        for span in exporter.get_finished_spans()
+        if span.name == 'mcp.execute.vera_rag_kb'
+    ]
+    assert len(mcp_spans) == 2
+    assert {span.context.trace_id for span in mcp_spans} == {
+        context.trace_id for context in parent_contexts.values()
+    }
+    assert {span.parent.span_id for span in mcp_spans} == {
+        context.span_id for context in parent_contexts.values()
+    }
+
+    for query, headers in outgoing_rag_headers.items():
+        propagated = trace.get_current_span(propagate.extract(headers)).get_span_context()
+        assert propagated.trace_id == parent_contexts[query].trace_id
+        matching_mcp_span = next(
+            span for span in mcp_spans if span.context.trace_id == propagated.trace_id
+        )
+        assert propagated.span_id == matching_mcp_span.context.span_id

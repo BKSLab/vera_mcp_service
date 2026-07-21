@@ -1,4 +1,8 @@
-from opentelemetry import trace
+import logging
+from collections.abc import Mapping
+
+from opentelemetry import propagate, trace
+from opentelemetry.context import Context
 from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter
 from opentelemetry.sdk.resources import Resource
 from opentelemetry.sdk.trace import TracerProvider
@@ -7,8 +11,10 @@ from opentelemetry.sdk.trace.export import BatchSpanProcessor, SpanExporter
 from app.core.settings import ObservabilitySettings
 
 SERVICE_NAME: str = 'vera_mcp_service'
+logger = logging.getLogger(SERVICE_NAME)
 
 _provider: TracerProvider | None = None
+_shutdown = False
 
 
 def configure_tracing(settings: ObservabilitySettings) -> TracerProvider:
@@ -16,23 +22,35 @@ def configure_tracing(settings: ObservabilitySettings) -> TracerProvider:
 
     В отличие от Agent Service здесь нет автоинструментации — `mcp`/`FastMCP`
     ею не покрываются (`AGENT_VERA_ARCHITECTURE.md`, раздел "Observability") —
-    только ручные spans на границах: `mcp.tool_call` (`app/tools/vera_rag_kb.py`)
-    и вложенный `rag.search` (`app/clients/rag_client.py`).
+    один ручной span `mcp.execute.<tool>` на серверной границе. Фактический
+    `rag.search` принадлежит RAG Service и приходит по W3C trace context.
 
     Идемпотентна — повторный вызов возвращает уже созданный `TracerProvider`,
     не плодит дублирующиеся процессоры.
     """
-    global _provider
+    global _provider, _shutdown
     if _provider is not None:
         return _provider
 
     provider = TracerProvider(resource=Resource.create({'service.name': SERVICE_NAME}))
-    exporter = OTLPSpanExporter(endpoint=settings.phoenix_otlp_endpoint)
-    provider.add_span_processor(BatchSpanProcessor(exporter))
+    _add_exporter(provider, settings)
     trace.set_tracer_provider(provider)
 
     _provider = provider
+    _shutdown = False
     return provider
+
+
+def _create_otlp_exporter(settings: ObservabilitySettings) -> OTLPSpanExporter:
+    return OTLPSpanExporter(
+        endpoint=settings.phoenix_otlp_endpoint,
+        headers={'x-project-name': settings.phoenix_project_name},
+    )
+
+
+def _add_exporter(provider: TracerProvider, settings: ObservabilitySettings) -> None:
+    if settings.phoenix_enabled:
+        provider.add_span_processor(BatchSpanProcessor(_create_otlp_exporter(settings)))
 
 
 def get_tracer() -> trace.Tracer:
@@ -41,6 +59,36 @@ def get_tracer() -> trace.Tracer:
     провайдера OpenTelemetry отдаёт no-op трейсер, `start_as_current_span`
     просто ничего не делает."""
     return trace.get_tracer(SERVICE_NAME)
+
+
+def extract_trace_context(headers: Mapping[str, str] | None) -> Context | None:
+    """Извлекает W3C-контекст; прямой unit-вызов без HTTP остаётся валидным root."""
+    if headers is None:
+        return None
+    return propagate.extract(headers)
+
+
+def force_flush_tracing(timeout_millis: int = 10_000) -> bool:
+    if _provider is None or _shutdown:
+        return True
+    try:
+        return _provider.force_flush(timeout_millis=timeout_millis)
+    except Exception:  # noqa: BLE001 - телеметрия не должна ломать shutdown
+        logger.exception('Не удалось выполнить force_flush OpenTelemetry')
+        return False
+
+
+def shutdown_tracing(timeout_millis: int = 10_000) -> None:
+    global _shutdown
+    if _provider is None or _shutdown:
+        return
+    force_flush_tracing(timeout_millis=timeout_millis)
+    try:
+        _provider.shutdown()
+    except Exception:  # noqa: BLE001 - телеметрия не должна ломать shutdown
+        logger.exception('Не удалось завершить OpenTelemetry provider')
+    finally:
+        _shutdown = True
 
 
 def reset_for_tests(exporter: SpanExporter | None = None) -> TracerProvider:
@@ -55,7 +103,7 @@ def reset_for_tests(exporter: SpanExporter | None = None) -> TracerProvider:
     задокументирована в `vera_agent_service/app/observability/tracing.py`).
     Между тестами достаточно `exporter.clear()`.
     """
-    global _provider
+    global _provider, _shutdown
     _provider = None
     provider = TracerProvider(resource=Resource.create({'service.name': SERVICE_NAME}))
     if exporter is not None:
@@ -65,4 +113,5 @@ def reset_for_tests(exporter: SpanExporter | None = None) -> TracerProvider:
     trace.set_tracer_provider(provider)
 
     _provider = provider
+    _shutdown = False
     return provider

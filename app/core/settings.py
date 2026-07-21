@@ -37,7 +37,9 @@ class RagClientSettings(SettingsBase):
 class ObservabilitySettings(SettingsBase):
     """Настройки экспорта трейсов в Arize Phoenix (MCP_SERVICE_PLAN.md, Этап 5)."""
 
+    phoenix_enabled: bool = True
     phoenix_otlp_endpoint: str = 'http://localhost:6006/v1/traces'
+    phoenix_project_name: str = 'vera-local'
 
 
 class Settings(BaseSettings):

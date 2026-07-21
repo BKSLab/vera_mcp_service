@@ -1,3 +1,6 @@
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
+
 import httpx
 from mcp.server.fastmcp import FastMCP
 from starlette.requests import Request
@@ -7,7 +10,7 @@ from app.clients.rag_client import RagClient
 from app.core.config_logger import logger
 from app.core.settings import get_settings
 from app.health import HealthRegistry
-from app.observability.tracing import configure_tracing
+from app.observability.tracing import configure_tracing, shutdown_tracing
 from app.tools import register_all_tools
 
 settings = get_settings()
@@ -26,6 +29,15 @@ settings = get_settings()
 httpx_client = httpx.AsyncClient()
 rag_client = RagClient(httpx_client=httpx_client, settings=settings.rag)
 
+
+@asynccontextmanager
+async def mcp_lifespan(_server) -> AsyncIterator[dict]:
+    """Закрывает общий HTTP-клиент, не откладывая регистрацию инструментов."""
+    try:
+        yield {}
+    finally:
+        await httpx_client.aclose()
+
 health_registry = HealthRegistry()
 health_registry.register('rag_service', rag_client.check_health)
 
@@ -34,6 +46,7 @@ mcp = FastMCP(
     host=settings.app.mcp_service_host,
     port=settings.app.mcp_service_port,
     stateless_http=True,
+    lifespan=mcp_lifespan,
 )
 register_all_tools(mcp, rag_client=rag_client, rag_top_k=settings.rag.rag_search_top_k)
 
@@ -61,7 +74,10 @@ def run() -> None:
     # span'а, а не в момент самого вызова `get_tracer()`.
     configure_tracing(settings.observability)
     logger.info('🚀 Старт vera_mcp_service')
-    mcp.run(transport='streamable-http')
+    try:
+        mcp.run(transport='streamable-http')
+    finally:
+        shutdown_tracing()
 
 
 if __name__ == '__main__':

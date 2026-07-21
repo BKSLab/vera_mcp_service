@@ -82,14 +82,19 @@ async def test_search_raises_rag_unavailable_on_connect_error():
         await client.search(query='квота', audience='both', top_k=5)
 
 
-async def test_search_raises_rag_unavailable_on_500():
+async def test_search_raises_rag_unavailable_on_500_without_leaking_response_body(caplog):
+    sensitive_text = 'sensitive user question'
+
     def handler(request: httpx.Request) -> httpx.Response:
-        return httpx.Response(500, json={'detail': 'embedding API unavailable'})
+        return httpx.Response(500, json={'detail': sensitive_text})
 
     client = _client(handler)
 
-    with pytest.raises(RagUnavailableError):
+    with pytest.raises(RagUnavailableError) as exc_info:
         await client.search(query='квота', audience='both', top_k=5)
+
+    assert sensitive_text not in str(exc_info.value)
+    assert sensitive_text not in caplog.text
 
 
 async def test_search_raises_rag_unavailable_on_429():
@@ -112,14 +117,19 @@ async def test_search_raises_rag_unavailable_on_invalid_json():
         await client.search(query='квота', audience='both', top_k=5)
 
 
-async def test_search_raises_rag_unavailable_on_missing_chunks_field():
+async def test_search_raises_rag_unavailable_on_missing_chunks_field_without_leaking_payload(caplog):
+    sensitive_text = 'sensitive echoed payload'
+
     def handler(request: httpx.Request) -> httpx.Response:
-        return httpx.Response(200, json={'unexpected': 'shape'})
+        return httpx.Response(200, json={'unexpected': sensitive_text})
 
     client = _client(handler)
 
-    with pytest.raises(RagUnavailableError):
+    with pytest.raises(RagUnavailableError) as exc_info:
         await client.search(query='квота', audience='both', top_k=5)
+
+    assert sensitive_text not in str(exc_info.value)
+    assert sensitive_text not in caplog.text
 
 
 async def test_check_health_returns_true_on_200():

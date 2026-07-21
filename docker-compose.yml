@@ -3,6 +3,8 @@ services:
     container_name: vera_mcp_service
     build: .
     env_file: .env
+    environment:
+      PHOENIX_PROJECT_NAME: ${PHOENIX_PROJECT_NAME:-vera-local}
     restart: on-failure
     command: bash entrypoint.sh
     # Порт хоста отличается от vera_rag_service (8000) и vera_agent_service (8010),

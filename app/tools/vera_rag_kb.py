@@ -1,11 +1,13 @@
 import logging
 from typing import Annotated, Literal
 
-from mcp.server.fastmcp import FastMCP
+from mcp.server.fastmcp import Context, FastMCP
+from opentelemetry.trace import Status, StatusCode
 from pydantic import Field
 
 from app.clients.rag_client import RagClient
-from app.observability.tracing import get_tracer
+from app.exceptions.rag import RagUnavailableError
+from app.observability.tracing import extract_trace_context, get_tracer
 
 logger = logging.getLogger('vera_mcp_service')
 tracer = get_tracer()
@@ -38,6 +40,7 @@ def register_vera_rag_kb(mcp: FastMCP, rag_client: RagClient, top_k: int) -> Non
     async def vera_rag_kb(
         query: Annotated[str, Field(min_length=1)],
         audience: Literal['seeker', 'employer', 'both'] = 'both',
+        ctx: Context | None = None,
     ) -> dict:
         """Поиск по базе знаний о правах людей с инвалидностью в сфере
         трудоустройства и трудовой деятельности.
@@ -53,7 +56,41 @@ def register_vera_rag_kb(mcp: FastMCP, rag_client: RagClient, top_k: int) -> Non
                 здесь (раздел 0.1 — Agent Service ждёт исключение MCP-уровня,
                 не `dict` с полем ошибки).
         """
-        with tracer.start_as_current_span('mcp.tool_call', attributes={'mcp.tool_name': 'vera_rag_kb'}):
-            return await rag_client.search(query=query, audience=audience, top_k=top_k)
+        try:
+            request_context = ctx.request_context if ctx is not None else None
+        except (AttributeError, ValueError):
+            request_context = None
+        request = getattr(request_context, 'request', None)
+        parent_context = extract_trace_context(getattr(request, 'headers', None))
+        with tracer.start_as_current_span(
+            'mcp.execute.vera_rag_kb',
+            context=parent_context,
+            attributes={
+                'openinference.span.kind': 'TOOL',
+                'mcp.server.name': 'vera-tools',
+                'mcp.tool.name': 'vera_rag_kb',
+                'mcp.tool.audience': audience,
+                'mcp.tool.query_length': len(query),
+            },
+        ) as span:
+            try:
+                result = await rag_client.search(query=query, audience=audience, top_k=top_k)
+            except RagUnavailableError as error:
+                span.set_attribute('mcp.tool.result_chunk_count', 0)
+                span.set_attribute('mcp.tool.outcome', 'rag_unavailable')
+                span.record_exception(error)
+                span.set_status(Status(StatusCode.ERROR, str(error)))
+                raise
+            except Exception as error:
+                span.set_attribute('mcp.tool.result_chunk_count', 0)
+                span.set_attribute('mcp.tool.outcome', 'error')
+                span.record_exception(error)
+                span.set_status(Status(StatusCode.ERROR, str(error)))
+                raise
+
+            chunks = result.get('chunks', [])
+            span.set_attribute('mcp.tool.result_chunk_count', len(chunks))
+            span.set_attribute('mcp.tool.outcome', 'ok' if chunks else 'empty')
+            return result
 
     mcp.add_tool(vera_rag_kb, name='vera_rag_kb', description=VERA_RAG_KB_DESCRIPTION)
