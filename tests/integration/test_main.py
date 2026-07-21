@@ -30,7 +30,7 @@ import uvicorn
 from langchain_mcp_adapters.client import MultiServerMCPClient
 from sse_starlette.sse import AppStatus
 
-from app.main import mcp
+from app.main import create_streamable_http_app, httpx_client
 
 
 def _free_port() -> int:
@@ -45,7 +45,7 @@ async def _run_app_main_server() -> AsyncIterator[str]:
     `test_protocol_compatibility.py` (раздел 0.2). Вызывается ровно один
     раз за модуль — `app.main.mcp` синглтон, повторный запуск его
     `streamable_http_app()` в этом же процессе невозможен."""
-    app = mcp.streamable_http_app()
+    app = create_streamable_http_app()
     port = _free_port()
     config = uvicorn.Config(app, host='127.0.0.1', port=port, log_level='warning')
     server = uvicorn.Server(config)
@@ -77,3 +77,9 @@ async def test_health_and_kb_search_tool_on_real_server():
         tools = await mcp_client.get_tools()
 
         assert {tool.name for tool in tools} == {'vera_rag_kb'}
+        # Завершение stateless MCP-сессии после list_tools не должно
+        # закрывать общий клиент RAG. Он закрывается только при shutdown
+        # всего ASGI-приложения ниже.
+        assert httpx_client.is_closed is False
+
+    assert httpx_client.is_closed is True

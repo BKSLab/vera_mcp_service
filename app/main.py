@@ -3,6 +3,7 @@ from contextlib import asynccontextmanager
 
 import httpx
 from mcp.server.fastmcp import FastMCP
+from starlette.applications import Starlette
 from starlette.requests import Request
 from starlette.responses import JSONResponse
 
@@ -15,28 +16,13 @@ from app.tools import register_all_tools
 
 settings = get_settings()
 
-# Собирается синхронно на уровне модуля, не через `lifespan=` конструктора
-# `FastMCP`. Найдено эмпирически: у `FastMCP` `lifespan` — это контекст
-# низкоуровневого MCP-сервера, привязанный к жизненному циклу MCP-сессии
-# (через `StreamableHTTPSessionManager`), а не ASGI-старт всего процесса,
-# как `lifespan` в FastAPI. Тулы, зарегистрированные там, не гарантированно
-# видны до первого реального MCP-запроса — подтверждено вручную: `GET
-# /health` (обычный Starlette custom_route, не MCP-сессия) отдавался
-# раньше, чем такой lifespan успевал выполниться. `httpx.AsyncClient()`
-# не требует запущенного event loop для создания — конструктор синхронный,
-# async нужен только для `.get()/.post()/.aclose()` — поэтому создание
-# здесь безопасно.
+# Клиент живёт всё время работы ASGI-приложения. Его нельзя закрывать через
+# `FastMCP(lifespan=...)`: этот lifecycle относится к низкоуровневой
+# MCP-сессии и при `stateless_http=True` завершается после отдельного
+# запроса. В результате первая же initialize/list_tools-сессия закрывала
+# общий клиент и следующие вызовы тула падали с `client has been closed`.
 httpx_client = httpx.AsyncClient()
 rag_client = RagClient(httpx_client=httpx_client, settings=settings.rag)
-
-
-@asynccontextmanager
-async def mcp_lifespan(_server) -> AsyncIterator[dict]:
-    """Закрывает общий HTTP-клиент, не откладывая регистрацию инструментов."""
-    try:
-        yield {}
-    finally:
-        await httpx_client.aclose()
 
 health_registry = HealthRegistry()
 health_registry.register('rag_service', rag_client.check_health)
@@ -46,9 +32,30 @@ mcp = FastMCP(
     host=settings.app.mcp_service_host,
     port=settings.app.mcp_service_port,
     stateless_http=True,
-    lifespan=mcp_lifespan,
 )
 register_all_tools(mcp, rag_client=rag_client, rag_top_k=settings.rag.rag_search_top_k)
+
+
+def create_streamable_http_app() -> Starlette:
+    """Создаёт MCP ASGI-app и закрывает HTTP-клиент на shutdown процесса.
+
+    `FastMCP.streamable_http_app()` уже задаёт ASGI-lifespan менеджера
+    streamable-http сессий. Оборачиваем именно его, сохраняя исходный
+    lifecycle, вместо использования session-level `FastMCP(lifespan=...)`.
+    """
+    app = mcp.streamable_http_app()
+    session_manager_lifespan = app.router.lifespan_context
+
+    @asynccontextmanager
+    async def process_lifespan(starlette_app: Starlette) -> AsyncIterator[None]:
+        async with session_manager_lifespan(starlette_app):
+            try:
+                yield
+            finally:
+                await httpx_client.aclose()
+
+    app.router.lifespan_context = process_lifespan
+    return app
 
 
 @mcp.custom_route('/health', methods=['GET'])
@@ -75,7 +82,14 @@ def run() -> None:
     configure_tracing(settings.observability)
     logger.info('🚀 Старт vera_mcp_service')
     try:
-        mcp.run(transport='streamable-http')
+        import uvicorn
+
+        uvicorn.run(
+            create_streamable_http_app(),
+            host=mcp.settings.host,
+            port=mcp.settings.port,
+            log_level=mcp.settings.log_level.lower(),
+        )
     finally:
         shutdown_tracing()
 
