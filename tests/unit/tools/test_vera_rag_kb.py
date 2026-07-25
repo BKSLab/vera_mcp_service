@@ -24,19 +24,18 @@ async def test_kb_search_calls_rag_client_with_expected_arguments():
     rag_client.search.return_value = {'chunks': []}
     mcp = _mcp_with_fake_rag_client(rag_client, top_k=7)
 
-    await mcp.call_tool('vera_rag_kb', {'query': 'квота на трудоустройство', 'audience': 'employer'})
+    await mcp.call_tool('vera_rag_kb', {'query': 'квота на трудоустройство'})
 
-    rag_client.search.assert_called_once_with(query='квота на трудоустройство', audience='employer', top_k=7)
+    rag_client.search.assert_called_once_with(query='квота на трудоустройство', top_k=7)
 
 
-async def test_kb_search_defaults_audience_to_both():
+async def test_kb_search_public_schema_contains_only_query():
     rag_client = AsyncMock()
-    rag_client.search.return_value = {'chunks': []}
     mcp = _mcp_with_fake_rag_client(rag_client)
 
-    await mcp.call_tool('vera_rag_kb', {'query': 'квота'})
+    (tool,) = await mcp.list_tools()
 
-    rag_client.search.assert_called_once_with(query='квота', audience='both', top_k=5)
+    assert set(tool.inputSchema['properties']) == {'query'}
 
 
 async def test_kb_search_returns_rag_client_result():
@@ -70,16 +69,6 @@ async def test_kb_search_rejects_empty_query_before_calling_rag_client():
     rag_client.search.assert_not_called()
 
 
-async def test_kb_search_rejects_invalid_audience_before_calling_rag_client():
-    rag_client = AsyncMock()
-    mcp = _mcp_with_fake_rag_client(rag_client)
-
-    with pytest.raises(ToolError):
-        await mcp.call_tool('vera_rag_kb', {'query': 'квота', 'audience': 'not_a_valid_audience'})
-
-    rag_client.search.assert_not_called()
-
-
 async def test_kb_search_propagates_rag_unavailable_error_not_swallowed_into_dict():
     rag_client = AsyncMock()
     rag_client.search.side_effect = RagUnavailableError('RAG Service unreachable')
@@ -106,12 +95,10 @@ async def test_register_vera_rag_kb_sets_non_empty_description():
     (vera_rag_kb_tool,) = tools
 
     assert vera_rag_kb_tool.description
-    assert 'audience' in vera_rag_kb_tool.description
-    assert 'Трудовой кодекс РФ' in vera_rag_kb_tool.description
-    assert 'федеральные законы' in vera_rag_kb_tool.description
-    assert 'постановления Правительства РФ' in vera_rag_kb_tool.description
-    assert 'постановления Верховного Суда РФ' in vera_rag_kb_tool.description
-    assert 'авторские публикации' in vera_rag_kb_tool.description
+    assert 'самодостаточный' in vera_rag_kb_tool.description
+    assert 'по всей доступной базе знаний' in vera_rag_kb_tool.description
+    assert 'audience' not in vera_rag_kb_tool.description
+    assert 'Трудовой кодекс РФ' not in vera_rag_kb_tool.description
 
 
 async def test_concurrent_kb_search_calls_do_not_share_state():

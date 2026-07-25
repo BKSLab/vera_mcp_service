@@ -56,13 +56,13 @@ def _finished_span(name: str):
 async def test_direct_call_creates_only_mcp_span_with_safe_success_attributes():
     mcp = _mcp(lambda request: httpx.Response(200, json={'chunks': [{'chunk_id': 'c1'}]}))
 
-    await mcp.call_tool('vera_rag_kb', {'query': 'sensitive query', 'audience': 'employer'})
+    await mcp.call_tool('vera_rag_kb', {'query': 'sensitive query'})
 
     spans = _exporter.get_finished_spans()
     assert [span.name for span in spans] == ['mcp.execute.vera_rag_kb']
     span = spans[0]
     assert span.attributes['openinference.span.kind'] == 'TOOL'
-    assert span.attributes['mcp.tool.audience'] == 'employer'
+    assert 'mcp.tool.audience' not in span.attributes
     assert span.attributes['mcp.tool.query_length'] == len('sensitive query')
     assert span.attributes['mcp.tool.result_chunk_count'] == 1
     assert span.attributes['mcp.tool.outcome'] == 'ok'
@@ -110,7 +110,7 @@ async def test_incoming_context_is_parent_and_outgoing_rag_header_uses_mcp_span(
     fake_context = SimpleNamespace(
         request_context=SimpleNamespace(request=SimpleNamespace(headers=carrier))
     )
-    await registered_tool.fn(query='q', audience='both', ctx=fake_context)
+    await registered_tool.fn(query='q', ctx=fake_context)
 
     mcp_span = _finished_span('mcp.execute.vera_rag_kb')
     assert mcp_span.context.trace_id == agent_context.trace_id
@@ -126,7 +126,7 @@ async def test_context_parameter_is_absent_from_public_schema():
 
     (tool,) = await mcp.list_tools()
 
-    assert set(tool.inputSchema['properties']) == {'query', 'audience'}
+    assert set(tool.inputSchema['properties']) == {'query'}
 
 
 def test_exporter_uses_shared_phoenix_project_header(monkeypatch):

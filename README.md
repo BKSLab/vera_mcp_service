@@ -11,7 +11,7 @@ MCP Tools Server — инструментальный слой между Agent 
 ## Как это работает
 
 1. **Приём вызова** — `FastMCP` (`mcp.server.fastmcp`), транспорт `streamable-http`, работает автономно (`mcp.run(transport="streamable-http")`) — без FastAPI, по образцу проверенного на масштабе in-house проекта `tools-mcp` (см. план, раздел 0.1). Agent Service подключается через `MultiServerMCPClient` на `/mcp`.
-2. **Инструмент `vera_rag_kb`** (`app/tools/vera_rag_kb.py`) — тонкий адаптер: валидация аргументов (`query` непустой, `audience` — `Literal['seeker', 'employer', 'both']`) через Pydantic-схему MCP, затем вызов `RagClient.search()`. Никакого `try/except` вокруг вызова — при сбое RAG Service исключение всплывает как есть: Agent Service (`handle_tool_errors=False`) ждёт именно исключение MCP-уровня, не `dict` с полем ошибки.
+2. **Инструмент `vera_rag_kb`** (`app/tools/vera_rag_kb.py`) — тонкий адаптер: валидация непустого `query` через Pydantic-схему MCP, затем вызов `RagClient.search()`. Роль пользователя в поисковый контракт не входит: RAG получает запрос без `audience` и ищет по всему корпусу. При сбое RAG Service исключение всплывает как есть: Agent Service (`handle_tool_errors=False`) ждёт именно исключение MCP-уровня, не `dict` с полем ошибки.
 3. **Реестр тулов** (`app/tools/__init__.py::register_all_tools`) — единственное место, которое трогают при добавлении нового инструмента (итерация 2: `get_user_favorites`, `search_vacancies`, `find_similar_vacancies`). Сопровождается meta-тестом (`tests/unit/tools/test_registry.py`), ловящим забытую регистрацию/дублирование имени.
 4. **Клиент RAG Service** (`app/clients/rag_client.py`) — `POST /api/v1/search` с `X-API-Key`. Без собственного слоя ретраев: Agent Service уже ретраит вызов тула целиком, RAG Service ретраит embedding/reranker внутри себя — ещё один слой был бы «ретраями в квадрате».
 5. **`GET /health`** — реестр проверок (`app/health.py::HealthRegistry`), тот же принцип расширяемости, что и у реестра тулов. Код ответа всегда `200`, недоступность RAG Service отражается только в теле (`{"status": "ok", "rag_service": "unreachable"}`) — сервис не падает из-за деградации соседа.
@@ -27,8 +27,8 @@ MCP Tools Server — инструментальный слой между Agent 
 
 | Контракт | Кто использует | Кратко |
 |---|---|---|
-| Тул `vera_rag_kb` (MCP, streamable-http) | Agent Service → этот сервис | `vera_rag_kb(query: str, audience: "seeker"\|"employer"\|"both" = "both") -> {"chunks": [...]}` — пустой список `chunks` валиден («нет ответа»), не ошибка. При сбое — исключение MCP-уровня, не `dict` с полем ошибки |
-| `POST /api/v1/search` | Этот сервис → RAG Service | `{"query", "audience", "top_k"}` → `{"chunks": [...]}`, заголовок `X-API-Key`. Формат ответа дословно совпадает с тем, что ожидает Agent Service от `vera_rag_kb` — прозрачный проброс, без трансформации полей |
+| Тул `vera_rag_kb` (MCP, streamable-http) | Agent Service → этот сервис | `vera_rag_kb(query: str) -> {"chunks": [...]}` — пустой список `chunks` валиден («нет ответа»), не ошибка. При сбое — исключение MCP-уровня, не `dict` с полем ошибки |
+| `POST /api/v1/search` | Этот сервис → RAG Service | `{"query", "top_k"}` → `{"chunks": [...]}`, заголовок `X-API-Key`. `audience` намеренно не передаётся, поэтому RAG ищет по всему корпусу; его собственная опциональная поддержка фильтра остаётся доступной для будущих сценариев |
 | `GET /health` | Оркестратор/мониторинг | `{"status": "ok", "rag_service": "ok"\|"unreachable"}` — код ответа всегда `200` |
 
 ## Запуск локально
@@ -132,4 +132,4 @@ ruff check .                 # линтер
 
 ## Статус
 
-Итерация 1 реализована (`MCP_SERVICE_PLAN.md`, этапы 0–8, 10). Актуальный набор — 49/49 тестов (unit + contract/integration без внешней инфраструктуры), `ruff check .` чист. Production endpoint проверен 2026-07-22: `/health` возвращает `status=ok`, `rag_service=ok`. Этап 9 (сквозной E2E) остаётся открытым до production-деплоя Agent Service.
+Итерация 1 реализована (`MCP_SERVICE_PLAN.md`, этапы 0–8, 10). Unit- и contract/integration-тесты не требуют внешней инфраструктуры; `ruff check .` должен оставаться чистым. Production endpoint проверен 2026-07-22: `/health` возвращал `status=ok`, `rag_service=ok`. Этап 9 (сквозной E2E) остаётся открытым до production-деплоя Agent Service.

@@ -149,7 +149,7 @@ async def test_kb_search_returns_dict_with_chunks_on_success():
         tools = await client.get_tools()
         (kb_search,) = [tool for tool in tools if tool.name == 'vera_rag_kb']
 
-        result = await kb_search.ainvoke({'query': 'квота', 'audience': 'both'})
+        result = await kb_search.ainvoke({'query': 'квота'})
 
         assert _parse_tool_result(result) == {'chunks': [{'chunk_id': 'c1', 'text': 'квота 2%'}]}
 
@@ -164,7 +164,7 @@ async def test_kb_search_returns_empty_chunks_as_valid_result_not_error():
         tools = await client.get_tools()
         (kb_search,) = [tool for tool in tools if tool.name == 'vera_rag_kb']
 
-        result = await kb_search.ainvoke({'query': 'непонятный вопрос', 'audience': 'both'})
+        result = await kb_search.ainvoke({'query': 'непонятный вопрос'})
 
         assert _parse_tool_result(result) == {'chunks': []}
 
@@ -180,7 +180,7 @@ async def test_kb_search_raises_exception_not_error_dict_when_rag_unreachable():
         (kb_search,) = [tool for tool in tools if tool.name == 'vera_rag_kb']
 
         with pytest.raises(_MCPToolExecutionError):
-            await kb_search.ainvoke({'query': 'квота', 'audience': 'both'})
+            await kb_search.ainvoke({'query': 'квота'})
 
 
 async def test_kb_search_raises_exception_not_error_dict_when_rag_returns_500():
@@ -194,7 +194,7 @@ async def test_kb_search_raises_exception_not_error_dict_when_rag_returns_500():
         (kb_search,) = [tool for tool in tools if tool.name == 'vera_rag_kb']
 
         with pytest.raises(_MCPToolExecutionError):
-            await kb_search.ainvoke({'query': 'квота', 'audience': 'both'})
+            await kb_search.ainvoke({'query': 'квота'})
 
 
 async def test_streamable_http_preserves_isolated_trace_context_to_mcp_and_rag():
@@ -216,7 +216,7 @@ async def test_streamable_http_preserves_isolated_trace_context_to_mcp_and_rag()
         async def call(query: str) -> None:
             with get_tracer().start_as_current_span(f'agent.{query}') as parent:
                 parent_contexts[query] = parent.get_span_context()
-                await kb_search.ainvoke({'query': query, 'audience': 'both'})
+                await kb_search.ainvoke({'query': query})
 
         await asyncio.gather(call('first'), call('second'))
 

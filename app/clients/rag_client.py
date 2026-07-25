@@ -24,12 +24,11 @@ class RagClient:
         self._httpx_client = httpx_client
         self._settings = settings
 
-    async def search(self, query: str, audience: str, top_k: int) -> dict:
+    async def search(self, query: str, top_k: int) -> dict:
         """Семантический поиск по базе знаний.
 
         Args:
             query: текст запроса пользователя.
-            audience: `'seeker' | 'employer' | 'both'`.
             top_k: сколько чанков вернуть после переранжирования.
 
         Returns:
@@ -44,14 +43,14 @@ class RagClient:
         """
         # Не логируем текст query на INFO — потенциально чувствительные
         # данные о здоровье/инвалидности (MCP_SERVICE_PLAN.md, раздел 0.3).
-        logger.info('🔍 Запрос к RAG Service: query_length=%d audience=%r top_k=%d', len(query), audience, top_k)
+        logger.info('🔍 Запрос к RAG Service: query_length=%d top_k=%d', len(query), top_k)
 
         try:
             headers = {'X-API-Key': self._settings.rag_service_api_key.get_secret_value()}
             propagate.inject(headers)
             response = await self._httpx_client.post(
                 f'{self._settings.rag_service_url}{SEARCH_PATH}',
-                json={'query': query, 'audience': audience, 'top_k': top_k},
+                json={'query': query, 'top_k': top_k},
                 headers=headers,
                 timeout=self._settings.rag_search_timeout_seconds,
             )

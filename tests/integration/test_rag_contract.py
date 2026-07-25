@@ -39,7 +39,7 @@ def _stub_rag_app(chunks: list[dict] | None = None) -> Starlette:
             return JSONResponse({'detail': 'invalid api key'}, status_code=401)
 
         body = await request.json()
-        assert set(body) == {'query', 'audience', 'top_k'}, f'Неожиданное тело запроса: {body!r}'
+        assert set(body) == {'query', 'top_k'}, f'Неожиданное тело запроса: {body!r}'
 
         return JSONResponse({'chunks': chunks or []})
 
@@ -81,7 +81,7 @@ async def test_rag_client_search_against_real_http_stub_server():
     async with _run_stub_server(app) as base_url, httpx.AsyncClient() as httpx_client:
         client = RagClient(httpx_client=httpx_client, settings=_settings(base_url))
 
-        result = await client.search(query='квота', audience='both', top_k=5)
+        result = await client.search(query='квота', top_k=5)
 
     assert result == {'chunks': [{'chunk_id': 'c1', 'text': 'квота 2%'}]}
 
@@ -98,4 +98,4 @@ async def test_rag_client_search_rejects_wrong_api_key_as_unavailable():
         client = RagClient(httpx_client=httpx_client, settings=settings)
 
         with pytest.raises(RagUnavailableError):
-            await client.search(query='квота', audience='both', top_k=5)
+            await client.search(query='квота', top_k=5)

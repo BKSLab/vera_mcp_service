@@ -28,7 +28,7 @@ async def test_search_returns_chunks_on_success():
 
     client = _client(handler)
 
-    result = await client.search(query='квота', audience='both', top_k=5)
+    result = await client.search(query='квота', top_k=5)
 
     assert result == {'chunks': [{'chunk_id': 'c1', 'text': 'квота 2%'}]}
 
@@ -39,7 +39,7 @@ async def test_search_returns_empty_chunks_as_valid_result_not_error():
 
     client = _client(handler)
 
-    result = await client.search(query='непонятный вопрос', audience='both', top_k=5)
+    result = await client.search(query='непонятный вопрос', top_k=5)
 
     assert result == {'chunks': []}
 
@@ -55,11 +55,11 @@ async def test_search_sends_api_key_header_and_request_body():
 
     client = _client(handler)
 
-    await client.search(query='квота', audience='employer', top_k=3)
+    await client.search(query='квота', top_k=3)
 
     assert captured_request['headers']['x-api-key'] == 'test-api-key'
     assert captured_request['url'] == 'http://rag.test/api/v1/search'
-    assert json.loads(captured_request['body']) == {'query': 'квота', 'audience': 'employer', 'top_k': 3}
+    assert json.loads(captured_request['body']) == {'query': 'квота', 'top_k': 3}
 
 
 async def test_search_raises_rag_unavailable_on_timeout():
@@ -69,7 +69,7 @@ async def test_search_raises_rag_unavailable_on_timeout():
     client = _client(handler)
 
     with pytest.raises(RagUnavailableError):
-        await client.search(query='квота', audience='both', top_k=5)
+        await client.search(query='квота', top_k=5)
 
 
 async def test_search_raises_rag_unavailable_on_connect_error():
@@ -79,7 +79,7 @@ async def test_search_raises_rag_unavailable_on_connect_error():
     client = _client(handler)
 
     with pytest.raises(RagUnavailableError):
-        await client.search(query='квота', audience='both', top_k=5)
+        await client.search(query='квота', top_k=5)
 
 
 async def test_search_raises_rag_unavailable_on_500_without_leaking_response_body(caplog):
@@ -91,7 +91,7 @@ async def test_search_raises_rag_unavailable_on_500_without_leaking_response_bod
     client = _client(handler)
 
     with pytest.raises(RagUnavailableError) as exc_info:
-        await client.search(query='квота', audience='both', top_k=5)
+        await client.search(query='квота', top_k=5)
 
     assert sensitive_text not in str(exc_info.value)
     assert sensitive_text not in caplog.text
@@ -104,7 +104,7 @@ async def test_search_raises_rag_unavailable_on_429():
     client = _client(handler)
 
     with pytest.raises(RagUnavailableError):
-        await client.search(query='квота', audience='both', top_k=5)
+        await client.search(query='квота', top_k=5)
 
 
 async def test_search_raises_rag_unavailable_on_invalid_json():
@@ -114,7 +114,7 @@ async def test_search_raises_rag_unavailable_on_invalid_json():
     client = _client(handler)
 
     with pytest.raises(RagUnavailableError):
-        await client.search(query='квота', audience='both', top_k=5)
+        await client.search(query='квота', top_k=5)
 
 
 async def test_search_raises_rag_unavailable_on_missing_chunks_field_without_leaking_payload(caplog):
@@ -126,7 +126,7 @@ async def test_search_raises_rag_unavailable_on_missing_chunks_field_without_lea
     client = _client(handler)
 
     with pytest.raises(RagUnavailableError) as exc_info:
-        await client.search(query='квота', audience='both', top_k=5)
+        await client.search(query='квота', top_k=5)
 
     assert sensitive_text not in str(exc_info.value)
     assert sensitive_text not in caplog.text
