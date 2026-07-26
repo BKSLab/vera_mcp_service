@@ -7,11 +7,16 @@ from starlette.applications import Starlette
 from starlette.requests import Request
 from starlette.responses import JSONResponse
 
+from app.clients.llm import LlmClient
 from app.clients.rag_client import RagClient
+from app.clients.smtp_client import SmtpClient
 from app.core.config_logger import logger
 from app.core.settings import get_settings
 from app.health import HealthRegistry
 from app.observability.tracing import configure_tracing, shutdown_tracing
+from app.renderers.consultation_pdf import ConsultationPdfRenderer
+from app.services.consultation_delivery import ConsultationDeliveryService
+from app.services.consultation_preparation import ConsultationPreparationService
 from app.tools import register_all_tools
 
 settings = get_settings()
@@ -23,6 +28,39 @@ settings = get_settings()
 # общий клиент и следующие вызовы тула падали с `client has been closed`.
 httpx_client = httpx.AsyncClient()
 rag_client = RagClient(httpx_client=httpx_client, settings=settings.rag)
+llm_client = LlmClient(
+    httpx_client=httpx_client,
+    model=settings.llm.consultation_formatting_llm_model,
+    url=f'{settings.llm.llm_api_url.rstrip("/")}/chat/completions',
+    headers={
+        'Content-Type': 'application/json',
+        'Authorization': f'Bearer {settings.llm.llm_api_key.get_secret_value()}',
+    },
+    temperature=settings.llm.llm_temperature,
+    timeout=int(settings.llm.llm_timeout_seconds),
+    retries=settings.llm.llm_retries,
+    delay=settings.llm.llm_retry_base_delay_seconds,
+    max_delay=settings.llm.llm_retry_max_delay_seconds,
+    use_json_mode=settings.llm.llm_use_json_mode,
+    extra_payload={
+        'reasoning': {
+            'effort': settings.llm.llm_reasoning_effort,
+            'summary': settings.llm.llm_reasoning_summary,
+            'enabled': settings.llm.llm_reasoning_enabled,
+            'exclude': False,
+        }
+    },
+)
+consultation_pdf_renderer = ConsultationPdfRenderer(settings.consultation)
+smtp_client = SmtpClient(settings.email)
+consultation_preparation_service = ConsultationPreparationService(
+    llm_client=llm_client,
+    pdf_renderer=consultation_pdf_renderer,
+)
+consultation_delivery_service = ConsultationDeliveryService(
+    preparation_service=consultation_preparation_service,
+    smtp_client=smtp_client,
+)
 
 health_registry = HealthRegistry()
 health_registry.register('rag_service', rag_client.check_health)
@@ -33,7 +71,12 @@ mcp = FastMCP(
     port=settings.app.mcp_service_port,
     stateless_http=True,
 )
-register_all_tools(mcp, rag_client=rag_client, rag_top_k=settings.rag.rag_search_top_k)
+register_all_tools(
+    mcp,
+    rag_client=rag_client,
+    rag_top_k=settings.rag.rag_search_top_k,
+    consultation_delivery_service=consultation_delivery_service,
+)
 
 
 def create_streamable_http_app() -> Starlette:

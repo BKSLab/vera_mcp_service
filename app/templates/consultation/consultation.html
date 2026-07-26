@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>{{ consultation.title }}</title>
+    <meta name="author" content="Вера · Работа для всех">
+    <meta name="generator" content="vera_mcp_service">
+    <meta name="description" content="Персональная консультация Веры">
+    <meta name="dcterms.created" content="{{ created_at_iso }}">
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <article class="document" aria-labelledby="document-title">
+        <header class="document-header">
+            <div class="brand-row">
+                <div class="platform-brand">
+                    <span class="platform-logo-wrap">
+                        <img
+                            class="platform-logo"
+                            src="assets/logo.png"
+                            alt="Логотип платформы «Работа для всех»"
+                        >
+                    </span>
+                    <div>
+                        <p class="platform-name">Работа для всех</p>
+                        <p class="platform-slogan" aria-label="Работа найдётся для каждого">
+                            ⠗⠁⠃⠕⠞⠁ ⠙⠇⠫ ⠅⠁⠚⠙⠕⠛⠕
+                        </p>
+                    </div>
+                </div>
+                <p class="document-kind">Персональная консультация</p>
+            </div>
+
+            <div class="title-row">
+                <img
+                    class="vera-avatar"
+                    src="assets/logo_ai_assistant.png"
+                    alt="Вера, виртуальный консультант платформы"
+                >
+                <div class="title-copy">
+                    <p class="eyebrow">Консультация Веры</p>
+                    <h1 id="document-title">{{ consultation.title }}</h1>
+                    <p class="subtitle">Рекомендации по итогам разговора</p>
+                </div>
+            </div>
+
+            <dl class="document-meta" aria-label="Сведения о консультации">
+                <div>
+                    <dt>Дата</dt>
+                    <dd><time datetime="{{ created_at_iso }}">{{ created_at_display }}</time></dd>
+                </div>
+                <div>
+                    <dt>Номер документа</dt>
+                    <dd>{{ document_number }}</dd>
+                </div>
+                <div>
+                    <dt>Подготовила</dt>
+                    <dd>Вера, виртуальный консультант</dd>
+                </div>
+            </dl>
+        </header>
+
+        <main>
+            {% if consultation.intro %}
+                <section class="lead" aria-labelledby="summary-title">
+                    <h2 id="summary-title">Коротко о главном</h2>
+                    {% for paragraph in consultation.intro %}
+                        <p>{{ paragraph }}</p>
+                    {% endfor %}
+                </section>
+            {% endif %}
+
+            {% for section in consultation.sections %}
+                <section class="consultation-section" aria-labelledby="section-{{ loop.index }}">
+                    <div class="section-heading">
+                        <span class="section-number" aria-hidden="true">
+                            {{ "%02d"|format(loop.index) }}
+                        </span>
+                        <h2 id="section-{{ loop.index }}">{{ section.heading }}</h2>
+                    </div>
+
+                    <div class="section-content">
+                        {% for paragraph in section.paragraphs %}
+                            <p>{{ paragraph }}</p>
+                        {% endfor %}
+
+                        {% if section.bullet_points %}
+                            <ul>
+                                {% for item in section.bullet_points %}
+                                    <li>{{ item }}</li>
+                                {% endfor %}
+                            </ul>
+                        {% endif %}
+                    </div>
+                </section>
+            {% endfor %}
+
+            {% if consultation.conclusion %}
+                <section class="conclusion" aria-labelledby="conclusion-title">
+                    <h2 id="conclusion-title">Итог</h2>
+                    {% for paragraph in consultation.conclusion %}
+                        <p>{{ paragraph }}</p>
+                    {% endfor %}
+                </section>
+            {% endif %}
+
+            {% if consultation.sources %}
+                <section class="sources" aria-labelledby="sources-title">
+                    <h2 id="sources-title">Источники и материалы</h2>
+                    <ul>
+                        {% for source in consultation.sources %}
+                            <li>
+                                {% if source.startswith("https://") or source.startswith("http://") %}
+                                    <a href="{{ source }}">{{ source }}</a>
+                                {% else %}
+                                    {{ source }}
+                                {% endif %}
+                            </li>
+                        {% endfor %}
+                    </ul>
+                </section>
+            {% endif %}
+
+            <aside class="disclaimer" aria-labelledby="disclaimer-title">
+                <h2 id="disclaimer-title">Обратите внимание</h2>
+                <p>
+                    Консультация носит информационный характер. Для решения
+                    юридических, медицинских или иных специализированных вопросов
+                    обратитесь к профильному специалисту.
+                </p>
+            </aside>
+        </main>
+
+        <footer class="document-footer">
+            <p>
+                Документ подготовлен виртуальным консультантом Верой по итогам
+                диалога. Проверьте актуальность контактов и ссылок перед использованием.
+            </p>
+            <p>работа-для-всех.рф</p>
+        </footer>
+    </article>
+</body>
+</html>

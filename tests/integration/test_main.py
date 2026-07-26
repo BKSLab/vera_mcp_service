@@ -76,7 +76,10 @@ async def test_health_and_kb_search_tool_on_real_server():
         )
         tools = await mcp_client.get_tools()
 
-        assert {tool.name for tool in tools} == {'vera_rag_kb'}
+        assert {tool.name for tool in tools} == {
+            'vera_rag_kb',
+            'send_consultation_email',
+        }
         # Завершение stateless MCP-сессии после list_tools не должно
         # закрывать общий клиент RAG. Он закрывается только при shutdown
         # всего ASGI-приложения ниже.

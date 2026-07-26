@@ -1,0 +1,331 @@
+:root {
+    --background: #0a0a0a;
+    --foreground: #f0f0f0;
+    --accent: #f5b800;
+    --surface: #181818;
+    --border: #303030;
+    --muted: #a4a4a4;
+}
+
+* {
+    box-sizing: border-box;
+}
+
+html,
+body {
+    margin: 0;
+    padding: 0;
+    background: var(--background);
+    color: var(--foreground);
+    font-family: "DejaVu Sans", "Noto Sans", Arial, sans-serif;
+    font-size: 11pt;
+    line-height: 1.62;
+}
+
+body {
+    hyphens: auto;
+}
+
+.document-header {
+    padding-bottom: 18pt;
+    border-bottom: 2pt solid var(--accent);
+}
+
+.brand-row,
+.title-row,
+.document-meta,
+.section-heading,
+.document-footer {
+    display: flex;
+}
+
+.brand-row,
+.document-footer {
+    align-items: flex-start;
+    justify-content: space-between;
+}
+
+.platform-brand,
+.title-row,
+.section-heading {
+    display: flex;
+    align-items: center;
+}
+
+.platform-brand {
+    gap: 9pt;
+}
+
+.platform-logo-wrap {
+    display: flex;
+    width: 34pt;
+    height: 34pt;
+    align-items: center;
+    justify-content: center;
+    border: 1pt solid rgba(245, 184, 0, 0.42);
+    border-radius: 50%;
+}
+
+.platform-logo {
+    width: 31pt;
+    height: 31pt;
+    border-radius: 50%;
+}
+
+.platform-name,
+.platform-slogan,
+.document-kind,
+.eyebrow,
+.subtitle,
+.document-meta,
+.document-footer {
+    margin: 0;
+}
+
+.platform-name {
+    color: var(--accent);
+    font-size: 10.5pt;
+    font-weight: 800;
+}
+
+.platform-slogan {
+    margin-top: 2pt;
+    color: var(--muted);
+    font-size: 6.5pt;
+    letter-spacing: 0.12em;
+}
+
+.document-kind {
+    color: var(--muted);
+    font-size: 7.5pt;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+}
+
+.title-row {
+    gap: 16pt;
+    margin-top: 22pt;
+}
+
+.vera-avatar {
+    width: 61pt;
+    height: 61pt;
+    border: 1.5pt solid rgba(245, 184, 0, 0.42);
+    border-radius: 50%;
+}
+
+.eyebrow {
+    color: var(--accent);
+    font-size: 8pt;
+    font-weight: 800;
+    letter-spacing: 0.11em;
+    text-transform: uppercase;
+}
+
+h1 {
+    margin: 5pt 0 0;
+    font-size: 25pt;
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    line-height: 1.13;
+}
+
+.subtitle {
+    margin-top: 7pt;
+    color: var(--muted);
+    font-size: 10pt;
+}
+
+.document-meta {
+    gap: 24pt;
+    margin: 16pt 0 0 77pt;
+    padding: 0;
+}
+
+.document-meta div {
+    margin: 0;
+}
+
+.document-meta dt {
+    color: var(--muted);
+    font-size: 6.5pt;
+    font-weight: 700;
+    letter-spacing: 0.09em;
+    text-transform: uppercase;
+}
+
+.document-meta dd {
+    margin: 2pt 0 0;
+    font-size: 8.5pt;
+    font-weight: 700;
+}
+
+main {
+    padding-top: 24pt;
+}
+
+.lead,
+.section-content,
+.conclusion,
+.sources,
+.disclaimer {
+    padding: 15pt 17pt;
+    border: 1pt solid var(--border);
+    border-radius: 9pt;
+    background: var(--surface);
+}
+
+.lead {
+    margin-bottom: 28pt;
+    border-color: rgba(245, 184, 0, 0.34);
+    border-left: 3pt solid var(--accent);
+    background: rgba(245, 184, 0, 0.08);
+}
+
+.lead h2,
+.conclusion h2,
+.sources h2,
+.disclaimer h2 {
+    margin: 0 0 7pt;
+    color: var(--accent);
+    font-size: 9pt;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+
+p {
+    margin: 0 0 9pt;
+    overflow-wrap: anywhere;
+}
+
+p:last-child {
+    margin-bottom: 0;
+}
+
+.consultation-section {
+    margin-bottom: 28pt;
+}
+
+.section-heading {
+    gap: 10pt;
+    margin-bottom: 12pt;
+}
+
+.section-number {
+    display: flex;
+    width: 26pt;
+    height: 26pt;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    background: var(--accent);
+    color: var(--background);
+    font-size: 8pt;
+    font-weight: 900;
+}
+
+.section-heading h2 {
+    margin: 0;
+    font-size: 16pt;
+    line-height: 1.25;
+}
+
+ul {
+    margin: 10pt 0 0;
+    padding-left: 20pt;
+}
+
+li {
+    margin-bottom: 6pt;
+    padding-left: 2pt;
+}
+
+li::marker {
+    color: var(--accent);
+    font-weight: 800;
+}
+
+a {
+    color: var(--accent);
+    text-decoration: underline;
+    text-decoration-thickness: 0.7pt;
+    text-underline-offset: 1.5pt;
+    overflow-wrap: anywhere;
+}
+
+.conclusion,
+.sources,
+.disclaimer {
+    margin-top: 22pt;
+}
+
+.disclaimer {
+    border-color: rgba(245, 184, 0, 0.34);
+    background: rgba(245, 184, 0, 0.08);
+}
+
+.disclaimer p,
+.document-footer {
+    color: var(--muted);
+}
+
+.document-footer {
+    gap: 20pt;
+    margin-top: 30pt;
+    padding-top: 12pt;
+    border-top: 1pt solid var(--border);
+    font-size: 7.5pt;
+}
+
+.document-footer p:first-child {
+    max-width: 390pt;
+}
+
+@page {
+    size: A4;
+    margin: 17mm 15mm 18mm;
+    background: #0a0a0a;
+
+    @bottom-left {
+        color: #8f8f8f;
+        content: "РАБОТА ДЛЯ ВСЕХ · ВЕРА";
+        font-family: "DejaVu Sans", "Noto Sans", Arial, sans-serif;
+        font-size: 7pt;
+        font-weight: 700;
+        letter-spacing: 0.07em;
+    }
+
+    @bottom-right {
+        color: #8f8f8f;
+        content: "СТРАНИЦА " counter(page) " ИЗ " counter(pages);
+        font-family: "DejaVu Sans", "Noto Sans", Arial, sans-serif;
+        font-size: 7pt;
+        font-weight: 700;
+    }
+}
+
+.document-header,
+.brand-row,
+.title-row,
+.document-meta,
+.lead,
+.section-heading,
+.conclusion,
+.sources,
+.disclaimer,
+.document-footer {
+    break-inside: avoid;
+}
+
+h1,
+h2 {
+    break-after: avoid;
+}
+
+p,
+li {
+    orphans: 3;
+    widows: 3;
+}

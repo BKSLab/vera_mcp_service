@@ -1,4 +1,5 @@
 from types import SimpleNamespace
+from unittest.mock import AsyncMock
 
 import httpx
 import pytest
@@ -17,6 +18,8 @@ from app.observability.tracing import (
     reset_for_tests,
     shutdown_tracing,
 )
+from app.schemas.consultation import ConsultationSendSuccess
+from app.tools.send_consultation_email import register_send_consultation_email
 from app.tools.vera_rag_kb import register_vera_rag_kb
 
 _exporter = InMemorySpanExporter()
@@ -127,6 +130,63 @@ async def test_context_parameter_is_absent_from_public_schema():
     (tool,) = await mcp.list_tools()
 
     assert set(tool.inputSchema['properties']) == {'query'}
+
+
+async def test_consultation_span_contains_no_text_or_email():
+    sensitive_text = 'PRIVATE CONSULTATION TEXT'
+    sensitive_email = 'private-user@example.com'
+    delivery_service = AsyncMock()
+    delivery_service.send.return_value = ConsultationSendSuccess(
+        email=sensitive_email,
+        document_name='consultation.pdf',
+    )
+    mcp = FastMCP('test-consultation-tracing')
+    register_send_consultation_email(mcp, delivery_service)
+
+    await mcp.call_tool(
+        'send_consultation_email',
+        {
+            'consultation_text': sensitive_text,
+            'email': sensitive_email,
+        },
+    )
+
+    span = _finished_span('mcp.execute.send_consultation_email')
+    attributes = str(span.attributes)
+    assert span.attributes['consultation.input_length'] == len(sensitive_text)
+    assert span.attributes['consultation.outcome'] == 'ok'
+    assert sensitive_text not in attributes
+    assert sensitive_email not in attributes
+
+
+async def test_consultation_span_uses_incoming_trace_context():
+    delivery_service = AsyncMock()
+    delivery_service.send.return_value = ConsultationSendSuccess(
+        email='user@example.com',
+        document_name='consultation.pdf',
+    )
+    mcp = FastMCP('test-consultation-tracing')
+    register_send_consultation_email(mcp, delivery_service)
+    (registered_tool,) = mcp._tool_manager._tools.values()
+    carrier = {}
+
+    with get_tracer().start_as_current_span('agent.consultation') as agent_span:
+        agent_context = agent_span.get_span_context()
+        propagate.inject(carrier)
+
+    fake_context = SimpleNamespace(
+        request_context=SimpleNamespace(request=SimpleNamespace(headers=carrier))
+    )
+    await registered_tool.fn(
+        consultation_text='Текст.',
+        email='user@example.com',
+        ctx=fake_context,
+    )
+
+    mcp_span = _finished_span('mcp.execute.send_consultation_email')
+    assert mcp_span.context.trace_id == agent_context.trace_id
+    assert mcp_span.parent.span_id == agent_context.span_id
+    assert mcp_span.parent.is_remote is True
 
 
 def test_exporter_uses_shared_phoenix_project_header(monkeypatch):

@@ -14,6 +14,7 @@ import json
 import socket
 from collections.abc import AsyncIterator, Awaitable, Callable
 from contextlib import asynccontextmanager
+from unittest.mock import AsyncMock
 
 import httpx
 import pytest
@@ -56,7 +57,12 @@ def _build_mcp_app(rag_handler) -> object:
     rag_client = RagClient(httpx_client=httpx_client, settings=_rag_client_settings())
 
     mcp = FastMCP('vera-tools', stateless_http=True)
-    register_all_tools(mcp, rag_client=rag_client, rag_top_k=5)
+    register_all_tools(
+        mcp,
+        rag_client=rag_client,
+        rag_top_k=5,
+        consultation_delivery_service=AsyncMock(),
+    )
     return mcp.streamable_http_app()
 
 

@@ -16,6 +16,13 @@ jobs:
       # Значения ниже нужны только чтобы Settings() сконструировался при импорте.
       RAG_SERVICE_URL: http://localhost:9/api/v1
       RAG_SERVICE_API_KEY: ci-rag-api-key
+      LLM_API_KEY: ci-llm-api-key
+      LLM_API_URL: http://localhost:9/api/v1
+      CONSULTATION_FORMATTING_LLM_MODEL: ci-consultation-formatting-model
+      EMAIL: ci@example.com
+      HOST_NAME: localhost
+      PORT: '465'
+      APPLICATION_KEY: ci-application-key
 
     steps:
       - uses: actions/checkout@v4

@@ -59,11 +59,15 @@
 | Тул | Описание | Доступность | Итерация |
 |-----|----------|-------------|----------|
 | `vera_rag_kb(query)` | Поиск по базе знаний Vera через RAG Service | Все пользователи | 1 |
+| `send_consultation_email(consultation_text, email)` | Структурирование готовой консультации через узкий внутренний LLM-процесс, PDF/UA и отправка по email после подтверждения пользователя | По явному подтверждению пользователя | 1 |
 | `get_user_favorites(user_id)` | Избранные вакансии пользователя | Только авторизованные | 2 |
 | `search_vacancies(location, query)` | Поиск вакансий с нормализацией локации через Dadata | Только авторизованные | 2 |
 | `find_similar_vacancies(vacancy_id)` | Похожие вакансии через векторный поиск | Только авторизованные | 2 |
 
-**Принцип расширения:** новый тул = новая функция в MCP Tools Server. Агент узнаёт о нём через описание инструмента — переписывать агент не нужно.
+**Принцип расширения:** новый тул = новая функция в MCP Tools Server. Агент
+узнаёт о нём через описание инструмента. MCP не оркестрирует диалог, но
+конкретная тула может владеть узким внутренним LLM-процессом, если он является
+частью её бизнес-контракта, как форматирование PDF-консультации.
 
 ---
 
@@ -445,14 +449,17 @@ async def find_similar_vacancies(vacancy_id: str) -> dict:
 
 ```
 mcp-tools-server/
-├── main.py              ← FastAPI + FastMCP монтирование
+├── main.py              ← standalone FastMCP streamable-http
 ├── tools/
 │   ├── vera_rag_kb.py   ← итерация 1
+│   ├── send_consultation_email.py ← PDF-консультация, итерация 1
 │   ├── favorites.py     ← итерация 2
 │   ├── vacancies.py     ← итерация 2
 │   └── similar.py       ← итерация 2
 ├── clients/
 │   ├── rag_client.py    ← HTTP клиент к RAG Service
+│   ├── llm.py           ← общий OpenAI-compatible LLM-клиент
+│   ├── smtp_client.py   ← SMTP с внутренними ретраями
 │   └── api_client.py    ← HTTP клиент к основному бэкенду
 └── config.py
 ```
@@ -531,6 +538,6 @@ Phoenix запускается отдельным контейнером в Dock
 
 | Итерация | Что добавляется |
 |----------|----------------|
-| **1 (текущая)** | Agent Service + RAG Service + MCP Tools Server с `vera_rag_kb` |
+| **1 (текущая)** | Agent Service + RAG Service + MCP Tools Server с `vera_rag_kb` и `send_consultation_email` |
 | **2** | Тулы: `get_user_favorites`, `search_vacancies` (Dadata), `find_similar_vacancies` (pgvector) |
 | **3+** | Тулы для платформы: размещение резюме, отклики, AI-матчинг работодатель↔соискатель |

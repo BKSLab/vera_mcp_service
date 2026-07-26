@@ -1,0 +1,1081 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="color-scheme" content="dark">
+    <title>Консультация Веры — шаблон документа</title>
+
+    <style>
+        :root {
+            --background: #0a0a0a;
+            --foreground: #f0f0f0;
+            --accent: #f5b800;
+            --accent-soft: rgba(245, 184, 0, 0.09);
+            --accent-border: rgba(245, 184, 0, 0.34);
+            --surface: #171717;
+            --surface-raised: #1d1d1d;
+            --border: #303030;
+            --muted: #a4a4a4;
+            --muted-strong: #c8c8c8;
+            --danger-soft: rgba(240, 123, 108, 0.09);
+            --danger-border: rgba(240, 123, 108, 0.38);
+            --danger-text: #ffb4a8;
+            --page-width: 210mm;
+            --screen-page-padding: 18mm;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        html {
+            background: #050505;
+            scroll-behavior: smooth;
+        }
+
+        body {
+            min-width: 320px;
+            margin: 0;
+            background: #050505;
+            color: var(--foreground);
+            font-family:
+                -apple-system,
+                BlinkMacSystemFont,
+                "Segoe UI",
+                "Noto Sans",
+                Arial,
+                sans-serif;
+            font-size: 16px;
+            line-height: 1.65;
+            text-rendering: optimizeLegibility;
+        }
+
+        a {
+            color: var(--accent);
+            text-decoration-color: rgba(245, 184, 0, 0.55);
+            text-decoration-thickness: 1px;
+            text-underline-offset: 3px;
+        }
+
+        a:hover {
+            text-decoration-color: var(--accent);
+        }
+
+        a:focus-visible {
+            border-radius: 3px;
+            outline: 3px solid var(--accent);
+            outline-offset: 3px;
+        }
+
+        .skip-link {
+            position: fixed;
+            z-index: 100;
+            top: 12px;
+            left: 12px;
+            padding: 10px 14px;
+            transform: translateY(-160%);
+            border-radius: 8px;
+            background: var(--accent);
+            color: var(--background);
+            font-weight: 800;
+            text-decoration: none;
+        }
+
+        .skip-link:focus {
+            transform: translateY(0);
+        }
+
+        .preview-note {
+            max-width: var(--page-width);
+            margin: 20px auto 12px;
+            padding: 12px 18px;
+            border: 1px solid var(--accent-border);
+            border-radius: 10px;
+            background: #11100c;
+            color: var(--muted-strong);
+            font-size: 14px;
+        }
+
+        .preview-note strong {
+            color: var(--accent);
+        }
+
+        .document {
+            width: min(100%, var(--page-width));
+            min-height: 297mm;
+            margin: 0 auto 32px;
+            padding: var(--screen-page-padding);
+            background: var(--background);
+            box-shadow: 0 24px 70px rgba(0, 0, 0, 0.58);
+        }
+
+        /* Шапка документа */
+        .document-header {
+            padding-bottom: 25px;
+            border-bottom: 2px solid var(--accent);
+        }
+
+        .brand-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 24px;
+            margin-bottom: 28px;
+        }
+
+        .platform-brand {
+            display: inline-flex;
+            align-items: center;
+            gap: 12px;
+            min-width: 0;
+        }
+
+        .platform-logo-wrap {
+            display: flex;
+            width: 44px;
+            height: 44px;
+            flex: 0 0 44px;
+            align-items: center;
+            justify-content: center;
+            border: 1px solid var(--accent-border);
+            border-radius: 50%;
+            box-shadow: 0 0 18px rgba(245, 184, 0, 0.18);
+        }
+
+        .platform-logo {
+            display: block;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+        }
+
+        .platform-copy {
+            min-width: 0;
+        }
+
+        .platform-name {
+            margin: 0;
+            color: var(--accent);
+            font-size: 15px;
+            font-weight: 800;
+            letter-spacing: 0.01em;
+            line-height: 1.2;
+        }
+
+        .platform-slogan {
+            margin: 4px 0 0;
+            color: var(--muted);
+            font-size: 10px;
+            letter-spacing: 0.14em;
+            line-height: 1.25;
+        }
+
+        .document-kind {
+            margin: 0;
+            color: var(--muted);
+            font-size: 11px;
+            font-weight: 800;
+            letter-spacing: 0.13em;
+            line-height: 1.3;
+            text-align: right;
+            text-transform: uppercase;
+        }
+
+        .title-row {
+            display: flex;
+            align-items: center;
+            gap: 22px;
+        }
+
+        .vera-avatar {
+            display: block;
+            width: 82px;
+            height: 82px;
+            flex: 0 0 82px;
+            border: 2px solid var(--accent-border);
+            border-radius: 50%;
+            object-fit: cover;
+            box-shadow: 0 0 24px rgba(245, 184, 0, 0.15);
+        }
+
+        .title-copy {
+            min-width: 0;
+        }
+
+        .eyebrow {
+            margin: 0 0 8px;
+            color: var(--accent);
+            font-size: 12px;
+            font-weight: 800;
+            letter-spacing: 0.12em;
+            line-height: 1.3;
+            text-transform: uppercase;
+        }
+
+        h1 {
+            max-width: 620px;
+            margin: 0;
+            color: var(--foreground);
+            font-size: 34px;
+            font-weight: 850;
+            letter-spacing: -0.025em;
+            line-height: 1.12;
+            overflow-wrap: anywhere;
+        }
+
+        .document-subtitle {
+            max-width: 650px;
+            margin: 11px 0 0;
+            color: var(--muted-strong);
+            font-size: 15px;
+            line-height: 1.5;
+        }
+
+        .document-meta {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px 28px;
+            margin: 22px 0 0 104px;
+            padding: 0;
+        }
+
+        .meta-item {
+            margin: 0;
+        }
+
+        .meta-item dt {
+            margin: 0 0 3px;
+            color: var(--muted);
+            font-size: 10px;
+            font-weight: 700;
+            letter-spacing: 0.1em;
+            line-height: 1.3;
+            text-transform: uppercase;
+        }
+
+        .meta-item dd {
+            margin: 0;
+            color: var(--foreground);
+            font-size: 13px;
+            font-weight: 650;
+            line-height: 1.4;
+        }
+
+        /* Основной поток документа */
+        main {
+            padding-top: 32px;
+        }
+
+        .lead {
+            margin: 0 0 38px;
+            padding: 20px 22px;
+            border: 1px solid var(--accent-border);
+            border-left: 4px solid var(--accent);
+            border-radius: 0 12px 12px 0;
+            background: var(--accent-soft);
+        }
+
+        .lead-label {
+            display: block;
+            margin-bottom: 7px;
+            color: var(--accent);
+            font-size: 11px;
+            font-weight: 800;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+        }
+
+        .lead p {
+            margin: 0;
+            color: var(--foreground);
+            font-size: 17px;
+            line-height: 1.6;
+        }
+
+        .consultation-section {
+            margin: 0 0 42px;
+        }
+
+        .section-heading {
+            display: flex;
+            align-items: center;
+            gap: 13px;
+            margin: 0 0 18px;
+        }
+
+        .section-number {
+            display: inline-flex;
+            width: 34px;
+            height: 34px;
+            flex: 0 0 34px;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
+            background: var(--accent);
+            color: var(--background);
+            font-size: 13px;
+            font-weight: 900;
+            line-height: 1;
+        }
+
+        h2 {
+            margin: 0;
+            color: var(--foreground);
+            font-size: 23px;
+            font-weight: 800;
+            letter-spacing: -0.01em;
+            line-height: 1.25;
+        }
+
+        h3 {
+            margin: 24px 0 9px;
+            color: var(--accent);
+            font-size: 16px;
+            font-weight: 800;
+            line-height: 1.35;
+        }
+
+        p {
+            margin: 0 0 13px;
+            overflow-wrap: anywhere;
+        }
+
+        p:last-child {
+            margin-bottom: 0;
+        }
+
+        ul,
+        ol {
+            margin: 14px 0 0;
+            padding-left: 25px;
+        }
+
+        li {
+            margin: 0 0 9px;
+            padding-left: 4px;
+        }
+
+        li::marker {
+            color: var(--accent);
+            font-weight: 800;
+        }
+
+        .surface {
+            padding: 22px;
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            background: var(--surface);
+        }
+
+        .surface + .surface {
+            margin-top: 14px;
+        }
+
+        .surface-title {
+            margin: 0 0 7px;
+            color: var(--accent);
+            font-size: 12px;
+            font-weight: 800;
+            letter-spacing: 0.09em;
+            line-height: 1.4;
+            text-transform: uppercase;
+        }
+
+        .action-list {
+            margin: 0;
+            padding: 0;
+            list-style: none;
+            counter-reset: action;
+        }
+
+        .action-step {
+            position: relative;
+            min-height: 64px;
+            margin: 0;
+            padding: 18px 20px 18px 64px;
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            background: var(--surface);
+            counter-increment: action;
+        }
+
+        .action-step + .action-step {
+            margin-top: 12px;
+        }
+
+        .action-step::before {
+            position: absolute;
+            top: 18px;
+            left: 19px;
+            display: inline-flex;
+            width: 28px;
+            height: 28px;
+            align-items: center;
+            justify-content: center;
+            border: 1px solid var(--accent-border);
+            border-radius: 50%;
+            background: var(--accent-soft);
+            color: var(--accent);
+            content: counter(action);
+            font-size: 12px;
+            font-weight: 900;
+            line-height: 1;
+        }
+
+        .action-step h3 {
+            margin: 0 0 5px;
+            color: var(--foreground);
+            font-size: 16px;
+            letter-spacing: 0;
+        }
+
+        .action-step p {
+            color: var(--muted-strong);
+            font-size: 14px;
+        }
+
+        .callout {
+            margin-top: 20px;
+            padding: 18px 20px;
+            border: 1px solid var(--accent-border);
+            border-radius: 10px;
+            background: var(--accent-soft);
+        }
+
+        .callout--caution {
+            border-color: var(--danger-border);
+            background: var(--danger-soft);
+        }
+
+        .callout-title {
+            display: flex;
+            align-items: center;
+            gap: 9px;
+            margin: 0 0 6px;
+            color: var(--accent);
+            font-size: 13px;
+            font-weight: 850;
+            line-height: 1.4;
+        }
+
+        .callout--caution .callout-title {
+            color: var(--danger-text);
+        }
+
+        .callout-icon {
+            display: inline-flex;
+            width: 22px;
+            height: 22px;
+            flex: 0 0 22px;
+            align-items: center;
+            justify-content: center;
+            border: 1px solid currentColor;
+            border-radius: 50%;
+            font-size: 12px;
+            font-weight: 900;
+            line-height: 1;
+        }
+
+        .callout p {
+            color: var(--muted-strong);
+            font-size: 14px;
+        }
+
+        .resource-list {
+            margin: 0;
+            padding: 0;
+            list-style: none;
+        }
+
+        .resource {
+            padding: 17px 19px;
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            background: var(--surface);
+        }
+
+        .resource + .resource {
+            margin-top: 10px;
+        }
+
+        .resource-name {
+            display: block;
+            margin-bottom: 4px;
+            color: var(--foreground);
+            font-weight: 750;
+        }
+
+        .resource-description {
+            display: block;
+            color: var(--muted);
+            font-size: 13px;
+        }
+
+        /* Приложение с диалогом начинается с новой страницы. */
+        .appendix {
+            margin-top: 56px;
+            padding-top: 28px;
+            border-top: 2px solid var(--accent);
+        }
+
+        .appendix-kicker {
+            margin: 0 0 8px;
+            color: var(--accent);
+            font-size: 11px;
+            font-weight: 800;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+        }
+
+        .appendix h2 {
+            margin-bottom: 10px;
+            font-size: 28px;
+        }
+
+        .appendix-intro {
+            margin-bottom: 24px;
+            color: var(--muted);
+            font-size: 14px;
+        }
+
+        .dialogue {
+            margin: 0;
+            padding: 0;
+            list-style: none;
+        }
+
+        .dialogue-entry {
+            padding: 18px 20px;
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            background: var(--surface);
+        }
+
+        .dialogue-entry + .dialogue-entry {
+            margin-top: 12px;
+        }
+
+        .dialogue-entry--vera {
+            border-left: 3px solid var(--accent);
+        }
+
+        .speaker {
+            display: block;
+            margin-bottom: 7px;
+            color: var(--accent);
+            font-size: 11px;
+            font-weight: 850;
+            letter-spacing: 0.09em;
+            text-transform: uppercase;
+        }
+
+        .dialogue-entry--user .speaker {
+            color: var(--muted-strong);
+        }
+
+        .dialogue-entry p {
+            font-size: 14px;
+        }
+
+        .document-footer {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 24px;
+            margin-top: 48px;
+            padding-top: 18px;
+            border-top: 1px solid var(--border);
+            color: var(--muted);
+            font-size: 11px;
+            line-height: 1.5;
+        }
+
+        .document-footer p {
+            max-width: 520px;
+            margin: 0;
+        }
+
+        .document-footer a {
+            white-space: nowrap;
+        }
+
+        /* Настройки печати и серверного преобразования HTML → PDF. */
+        @page {
+            size: A4;
+            margin: 18mm 16mm 19mm;
+            background: #0a0a0a;
+
+            @bottom-left {
+                color: #8f8f8f;
+                content: "РАБОТА ДЛЯ ВСЕХ · ВЕРА";
+                font-family: "Segoe UI", "Noto Sans", Arial, sans-serif;
+                font-size: 8pt;
+                font-weight: 700;
+                letter-spacing: 0.08em;
+            }
+
+            @bottom-right {
+                color: #8f8f8f;
+                content: "СТРАНИЦА " counter(page) " ИЗ " counter(pages);
+                font-family: "Segoe UI", "Noto Sans", Arial, sans-serif;
+                font-size: 8pt;
+                font-weight: 700;
+                letter-spacing: 0.05em;
+            }
+        }
+
+        @media print {
+            * {
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
+            }
+
+            html,
+            body {
+                background: var(--background);
+            }
+
+            body {
+                font-size: 11pt;
+            }
+
+            .skip-link,
+            .preview-note {
+                display: none !important;
+            }
+
+            .document {
+                width: auto;
+                min-height: 0;
+                margin: 0;
+                padding: 0;
+                box-shadow: none;
+            }
+
+            .document-header,
+            .brand-row,
+            .title-row,
+            .document-meta,
+            .lead,
+            .section-heading,
+            .surface,
+            .action-step,
+            .callout,
+            .resource,
+            .document-footer {
+                break-inside: avoid;
+            }
+
+            h1,
+            h2,
+            h3,
+            .speaker {
+                break-after: avoid;
+            }
+
+            p,
+            li {
+                orphans: 3;
+                widows: 3;
+            }
+
+            .consultation-section {
+                margin-bottom: 32px;
+            }
+
+            .appendix {
+                break-before: page;
+                margin-top: 0;
+            }
+
+            .dialogue-entry {
+                break-inside: auto;
+            }
+
+            a {
+                color: var(--accent);
+            }
+        }
+
+        @media (max-width: 720px) {
+            :root {
+                --screen-page-padding: 24px;
+            }
+
+            .preview-note {
+                margin: 12px;
+            }
+
+            .document {
+                margin-bottom: 0;
+            }
+
+            .brand-row {
+                align-items: flex-start;
+            }
+
+            .document-kind {
+                max-width: 150px;
+            }
+
+            .title-row {
+                align-items: flex-start;
+            }
+
+            .vera-avatar {
+                width: 62px;
+                height: 62px;
+                flex-basis: 62px;
+            }
+
+            h1 {
+                font-size: 28px;
+            }
+
+            .document-meta {
+                margin-left: 84px;
+            }
+
+            .document-footer {
+                flex-direction: column;
+                gap: 10px;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .brand-row {
+                display: block;
+            }
+
+            .document-kind {
+                max-width: none;
+                margin-top: 16px;
+                text-align: left;
+            }
+
+            .title-row {
+                display: block;
+            }
+
+            .vera-avatar {
+                margin-bottom: 18px;
+            }
+
+            .document-meta {
+                margin-left: 0;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <a class="skip-link" href="#consultation-content">Перейти к консультации</a>
+
+    <aside class="preview-note" aria-label="Примечание к предпросмотру">
+        <strong>Предпросмотр шаблона.</strong>
+        Этот блок не попадёт в PDF. Ниже показано примерное наполнение, чтобы проверить
+        композицию, переносы и многостраничную печать.
+    </aside>
+
+    <!--
+        Шаблон подготовлен как будущая основа для Jinja.
+        Значения, которые будет подставлять сервис, отмечены атрибутом
+        data-template-field. Повторяемые блоки отмечены data-template-list.
+    -->
+    <article class="document" aria-labelledby="document-title">
+        <header class="document-header">
+            <div class="brand-row">
+                <div class="platform-brand" aria-label="Платформа «Работа для всех»">
+                    <span class="platform-logo-wrap">
+                        <img
+                            class="platform-logo"
+                            src="consultation_template_assets/logo.png"
+                            alt="Логотип платформы «Работа для всех»"
+                            width="40"
+                            height="40"
+                        >
+                    </span>
+                    <div class="platform-copy">
+                        <p class="platform-name">Работа для всех</p>
+                        <p class="platform-slogan" aria-label="Работа найдётся для каждого">
+                            ⠗⠁⠃⠕⠞⠁ ⠙⠇⠫ ⠅⠁⠚⠙⠕⠛⠕
+                        </p>
+                    </div>
+                </div>
+
+                <p class="document-kind">Персональная консультация</p>
+            </div>
+
+            <div class="title-row">
+                <img
+                    class="vera-avatar"
+                    src="consultation_template_assets/logo_ai_assistant.png"
+                    alt="Вера, виртуальный консультант платформы"
+                    width="82"
+                    height="82"
+                >
+
+                <div class="title-copy">
+                    <p class="eyebrow">Консультация Веры</p>
+                    <h1 id="document-title" data-template-field="title">
+                        Как подготовиться к первому рабочему дню
+                    </h1>
+                    <p
+                        class="document-subtitle"
+                        role="doc-subtitle"
+                        data-template-field="subtitle"
+                    >
+                        Индивидуальные рекомендации по итогам разговора
+                    </p>
+                </div>
+            </div>
+
+            <dl class="document-meta" aria-label="Сведения о консультации">
+                <div class="meta-item">
+                    <dt>Дата</dt>
+                    <dd data-template-field="created_at">
+                        <time datetime="2026-07-26">26 июля 2026 года</time>
+                    </dd>
+                </div>
+                <div class="meta-item">
+                    <dt>Номер документа</dt>
+                    <dd data-template-field="document_number">VRA-2026-0001</dd>
+                </div>
+                <div class="meta-item">
+                    <dt>Подготовила</dt>
+                    <dd>Вера, виртуальный консультант</dd>
+                </div>
+            </dl>
+        </header>
+
+        <main id="consultation-content">
+            <section class="lead" aria-labelledby="summary-label">
+                <span class="lead-label" id="summary-label">Коротко о главном</span>
+                <p data-template-field="summary">
+                    Первый рабочий день станет спокойнее, если заранее уточнить маршрут,
+                    необходимые документы, доступность рабочего места и контакт сотрудника,
+                    который встретит вас на месте.
+                </p>
+            </section>
+
+            <section class="consultation-section" aria-labelledby="section-context">
+                <div class="section-heading">
+                    <span class="section-number" aria-hidden="true">01</span>
+                    <h2 id="section-context">Суть обращения</h2>
+                </div>
+
+                <div class="surface" data-template-field="request_context">
+                    <p>
+                        Вы рассказали, что получили предложение о работе и хотите заранее
+                        разобраться, как будет устроен первый день. Больше всего вас волнуют
+                        дорога до офиса, знакомство с командой и возможность пользоваться
+                        привычными средствами доступности.
+                    </p>
+                    <p>
+                        Это нормальные вопросы. Их лучше задать работодателю до выхода,
+                        чтобы в первый день сосредоточиться на знакомстве с задачами и людьми.
+                    </p>
+                </div>
+            </section>
+
+            <section class="consultation-section" aria-labelledby="section-analysis">
+                <div class="section-heading">
+                    <span class="section-number" aria-hidden="true">02</span>
+                    <h2 id="section-analysis">Что важно учесть</h2>
+                </div>
+
+                <div data-template-list="analysis_blocks">
+                    <div class="surface">
+                        <p class="surface-title">Организация первого дня</p>
+                        <p>
+                            Попросите работодателя сообщить время прибытия, имя встречающего
+                            сотрудника и способ связаться с ним. Уточните, нужно ли брать
+                            паспорт, трудовые документы или реквизиты банковского счёта.
+                        </p>
+                    </div>
+
+                    <div class="surface">
+                        <p class="surface-title">Доступность рабочего места</p>
+                        <p>
+                            Заранее перечислите только те условия, которые действительно
+                            понадобятся: доступ без ступеней, помощь при ориентировании,
+                            совместимость рабочего компьютера со скринридером или другое
+                            разумное приспособление.
+                        </p>
+                    </div>
+
+                    <div class="surface">
+                        <p class="surface-title">Спокойный темп знакомства</p>
+                        <p>
+                            Не требуется запомнить всё сразу. Запишите имена ключевых коллег,
+                            основные каналы связи и первые задачи. Остальные детали можно
+                            уточнить позже.
+                        </p>
+                    </div>
+                </div>
+            </section>
+
+            <section class="consultation-section" aria-labelledby="section-plan">
+                <div class="section-heading">
+                    <span class="section-number" aria-hidden="true">03</span>
+                    <h2 id="section-plan">Рекомендуемый план действий</h2>
+                </div>
+
+                <ol class="action-list" data-template-list="action_steps">
+                    <li class="action-step">
+                        <h3>Свяжитесь с работодателем</h3>
+                        <p>
+                            Напишите или позвоните контактному лицу за один–два рабочих дня
+                            до выхода и уточните организационные детали.
+                        </p>
+                    </li>
+                    <li class="action-step">
+                        <h3>Подготовьте документы и маршрут</h3>
+                        <p>
+                            Сложите документы в одну папку, проверьте дорогу и предусмотрите
+                            небольшой запас времени.
+                        </p>
+                    </li>
+                    <li class="action-step">
+                        <h3>Сформулируйте потребности</h3>
+                        <p>
+                            Кратко запишите, какие условия доступности понадобятся вам для
+                            выполнения рабочих задач.
+                        </p>
+                    </li>
+                    <li class="action-step">
+                        <h3>Зафиксируйте итоги первого дня</h3>
+                        <p>
+                            После работы запишите полученные доступы, имена коллег, первые
+                            задачи и вопросы, которые ещё нужно обсудить.
+                        </p>
+                    </li>
+                </ol>
+
+                <aside class="callout" aria-labelledby="callout-important-title">
+                    <p class="callout-title" id="callout-important-title">
+                        <span class="callout-icon" aria-hidden="true">!</span>
+                        Важно
+                    </p>
+                    <p data-template-field="important_note">
+                        Просьба об условиях доступности — это не неудобство для работодателя,
+                        а способ заранее организовать эффективную работу.
+                    </p>
+                </aside>
+            </section>
+
+            <section class="consultation-section" aria-labelledby="section-phrasing">
+                <div class="section-heading">
+                    <span class="section-number" aria-hidden="true">04</span>
+                    <h2 id="section-phrasing">Пример сообщения работодателю</h2>
+                </div>
+
+                <div class="surface" data-template-field="example_message">
+                    <p>
+                        «Здравствуйте! Подтверждаю, что буду в офисе в понедельник к 9:00.
+                        Подскажите, пожалуйста, кто сможет встретить меня у входа и какие
+                        документы нужно взять с собой. Для работы мне также понадобится
+                        возможность использовать скринридер. С кем можно заранее обсудить
+                        его установку и доступ к рабочим системам?»
+                    </p>
+                </div>
+            </section>
+
+            <section class="consultation-section" aria-labelledby="section-resources">
+                <div class="section-heading">
+                    <span class="section-number" aria-hidden="true">05</span>
+                    <h2 id="section-resources">Полезные материалы</h2>
+                </div>
+
+                <ul class="resource-list" data-template-list="resources">
+                    <li class="resource">
+                        <span class="resource-name">
+                            <a href="https://работа-для-всех.рф/">
+                                Платформа «Работа для всех»
+                            </a>
+                        </span>
+                        <span class="resource-description">
+                            Вакансии, материалы и сервисы для соискателей.
+                        </span>
+                    </li>
+                    <li class="resource">
+                        <span class="resource-name">Контакт работодателя</span>
+                        <span class="resource-description" data-template-field="employer_contact">
+                            Имя сотрудника, телефон или адрес электронной почты.
+                        </span>
+                    </li>
+                </ul>
+
+                <aside
+                    class="callout callout--caution"
+                    aria-labelledby="callout-disclaimer-title"
+                >
+                    <p class="callout-title" id="callout-disclaimer-title">
+                        <span class="callout-icon" aria-hidden="true">i</span>
+                        Обратите внимание
+                    </p>
+                    <p data-template-field="disclaimer">
+                        Консультация носит информационный характер. Для решения юридических,
+                        медицинских или иных специализированных вопросов обратитесь к
+                        профильному специалисту.
+                    </p>
+                </aside>
+            </section>
+
+            <!--
+                Блок можно полностью исключить при генерации документа, если пользователь
+                не просил прикладывать исходный диалог.
+            -->
+            <section class="appendix" aria-labelledby="dialogue-title">
+                <p class="appendix-kicker">Приложение</p>
+                <h2 id="dialogue-title">Основные фрагменты разговора</h2>
+                <p class="appendix-intro">
+                    Диалог приведён для контекста. Формулировки могли быть сокращены,
+                    при этом смысл вопросов и ответов сохранён.
+                </p>
+
+                <ol class="dialogue" data-template-list="dialogue_messages">
+                    <li class="dialogue-entry dialogue-entry--user">
+                        <span class="speaker">Пользователь</span>
+                        <p>
+                            Я выхожу на новую работу в понедельник. Это мой первый опыт в
+                            большом офисе, поэтому переживаю, что не смогу быстро
+                            сориентироваться.
+                        </p>
+                    </li>
+                    <li class="dialogue-entry dialogue-entry--vera">
+                        <span class="speaker">Вера</span>
+                        <p>
+                            Давайте подготовимся заранее. Вы уже знаете, кто встретит вас
+                            у входа и какие документы нужно принести?
+                        </p>
+                    </li>
+                    <li class="dialogue-entry dialogue-entry--user">
+                        <span class="speaker">Пользователь</span>
+                        <p>
+                            Пока нет. Ещё мне нужно уточнить, можно ли установить скринридер
+                            на рабочий компьютер.
+                        </p>
+                    </li>
+                    <li class="dialogue-entry dialogue-entry--vera">
+                        <span class="speaker">Вера</span>
+                        <p>
+                            Тогда лучше написать контактному лицу до выхода. Я помогу
+                            составить короткое сообщение и список вопросов.
+                        </p>
+                    </li>
+                </ol>
+            </section>
+        </main>
+
+        <footer class="document-footer">
+            <p>
+                Документ подготовлен виртуальным консультантом Верой по итогам диалога.
+                Пожалуйста, проверьте актуальность контактов и ссылок перед использованием.
+            </p>
+            <a href="https://работа-для-всех.рф/">работа-для-всех.рф</a>
+        </footer>
+    </article>
+</body>
+</html>

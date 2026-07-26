@@ -22,11 +22,18 @@ ENV PYTHONDONTWRITEBYTECODE=1
 
 WORKDIR /app
 
-# Только runtime-зависимости (tzdata, curl для HEALTHCHECK) — без
+# Только runtime-зависимости (tzdata, curl для HEALTHCHECK, Pango/шрифты для
+# WeasyPrint) — без
 # dev-зависимостей (pytest/ruff, см. requirements-dev.txt) —
 # меньше образ, меньше поверхность атаки при компрометации процесса.
 RUN apt-get update && \
-    apt-get install -y --no-install-recommends tzdata curl && \
+    apt-get install -y --no-install-recommends \
+        tzdata \
+        curl \
+        libpango-1.0-0 \
+        libpangoft2-1.0-0 \
+        libharfbuzz-subset0 \
+        fonts-dejavu-core && \
     ln -sf /usr/share/zoneinfo/Europe/Moscow /etc/localtime && \
     echo "Europe/Moscow" > /etc/timezone && \
     dpkg-reconfigure -f noninteractive tzdata && \
