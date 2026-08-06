@@ -13,6 +13,10 @@ TitleText = Annotated[
     str,
     StringConstraints(strip_whitespace=True, min_length=1),
 ]
+ConsultationTopic = Annotated[
+    str,
+    StringConstraints(strip_whitespace=True, min_length=1, max_length=120),
+]
 HeadingText = Annotated[
     str,
     StringConstraints(strip_whitespace=True, min_length=1),
@@ -58,15 +62,11 @@ class ConsultationSection(BaseModel):
         return self
 
 
-class PreparedConsultation(BaseModel):
-    """Структурированный LLM-результат, из которого строится документ."""
+class ConsultationContent(BaseModel):
+    """Структурированное содержимое консультации без заголовка документа."""
 
     model_config = ConfigDict(extra='forbid')
 
-    title: TitleText = Field(
-        description='Название консультации без имени пользователя и email.',
-        examples=['Подготовка к первому рабочему дню'],
-    )
     intro: list[ParagraphText] = Field(
         default_factory=list,
         description='Короткое вступление из исходного текста.',
@@ -91,10 +91,23 @@ class PreparedConsultation(BaseModel):
         return list(dict.fromkeys(values))
 
     @model_validator(mode='after')
-    def validate_meaningful_content(self) -> 'PreparedConsultation':
+    def validate_meaningful_content(self) -> 'ConsultationContent':
         if not self.intro and not self.sections and not self.conclusion:
             raise ValueError('Консультация не содержит ни одного смыслового блока')
         return self
+
+
+class FormattedConsultation(ConsultationContent):
+    """Результат LLM-структурирования без темы, которую задаёт агент."""
+
+
+class PreparedConsultation(ConsultationContent):
+    """Готовая структура с темой для формирования документа."""
+
+    title: TitleText = Field(
+        description='Тема консультации без имени пользователя и email.',
+        examples=['Права при увольнении'],
+    )
 
 
 class GeneratedConsultationDocument(BaseModel):
@@ -125,6 +138,7 @@ class ConsultationSendSuccess(BaseModel):
 ConsultationErrorCode = Literal[
     'invalid_email',
     'invalid_consultation_text',
+    'invalid_consultation_topic',
     'consultation_formatting_failed',
     'pdf_generation_failed',
     'email_delivery_failed',

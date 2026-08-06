@@ -3,9 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <title>{{ consultation.title }}</title>
-    <meta name="author" content="Вера · Работа для всех">
+    <meta name="author" content="Ассистент Вера · Работа для всех">
     <meta name="generator" content="vera_mcp_service">
-    <meta name="description" content="Персональная консультация Веры">
+    <meta name="description" content="Персональная консультация Ассистента Веры">
     <meta name="dcterms.created" content="{{ created_at_iso }}">
     <link rel="stylesheet" href="styles.css">
 </head>
@@ -21,7 +21,7 @@
                             alt="Логотип платформы «Работа для всех»"
                         >
                     </span>
-                    <div>
+                    <div class="platform-copy">
                         <p class="platform-name">Работа для всех</p>
                         <p class="platform-slogan" aria-label="Работа найдётся для каждого">
                             ⠗⠁⠃⠕⠞⠁ ⠙⠇⠫ ⠅⠁⠚⠙⠕⠛⠕
@@ -35,10 +35,10 @@
                 <img
                     class="vera-avatar"
                     src="assets/logo_ai_assistant.png"
-                    alt="Вера, виртуальный консультант платформы"
+                    alt="Ассистент Вера, виртуальный консультант платформы"
                 >
                 <div class="title-copy">
-                    <p class="eyebrow">Консультация Веры</p>
+                    <p class="eyebrow">Консультация Ассистента Веры</p>
                     <h1 id="document-title">{{ consultation.title }}</h1>
                     <p class="subtitle">Рекомендации по итогам разговора</p>
                 </div>
@@ -54,8 +54,8 @@
                     <dd>{{ document_number }}</dd>
                 </div>
                 <div>
-                    <dt>Подготовила</dt>
-                    <dd>Вера, виртуальный консультант</dd>
+                    <dt>Подготовил</dt>
+                    <dd>Ассистент Вера</dd>
                 </div>
             </dl>
         </header>
@@ -133,7 +133,7 @@
 
         <footer class="document-footer">
             <p>
-                Документ подготовлен виртуальным консультантом Верой по итогам
+                Документ подготовлен Ассистентом Верой по итогам
                 диалога. Проверьте актуальность контактов и ссылок перед использованием.
             </p>
             <p>работа-для-всех.рф</p>

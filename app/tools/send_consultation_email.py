@@ -7,11 +7,15 @@ from app.services.consultation_delivery import ConsultationDeliveryService
 tracer = get_tracer()
 
 SEND_CONSULTATION_EMAIL_DESCRIPTION = (
-    'Формирует PDF из уже подготовленного итогового текста консультации Веры '
+    'Формирует PDF из уже подготовленного итогового текста консультации '
+    'Ассистента Веры '
     'и отправляет документ на подтверждённый пользователем email. Вызывай '
     'инструмент только после явной просьбы или подтверждения пользователя. '
     'consultation_text — полный итоговый текст консультации; агенту не нужно '
     'самостоятельно разбивать его на разделы или добавлять форматирование. '
+    'consultation_topic — краткая тема консультации на русском языке без слова '
+    '«Консультация», даты и расширения файла; сервис сам оформит заголовок и '
+    'имя PDF. '
     'email — адрес, который пользователь сообщил или явно подтвердил. '
     'Инструмент сам структурирует текст, формирует доступный PDF и отправляет '
     'письмо. status="error" означает, что отправка не была подтверждена. '
@@ -28,6 +32,7 @@ def register_send_consultation_email(
 
     async def send_consultation_email(
         consultation_text: str,
+        consultation_topic: str,
         email: str,
         ctx: Context | None = None,
     ) -> dict:
@@ -46,11 +51,13 @@ def register_send_consultation_email(
                 'mcp.server.name': 'vera-tools',
                 'mcp.tool.name': 'send_consultation_email',
                 'consultation.input_length': len(consultation_text),
+                'consultation.topic_length': len(consultation_topic),
             },
         ) as span:
             try:
                 result = await consultation_delivery_service.send(
                     consultation_text=consultation_text,
+                    consultation_topic=consultation_topic,
                     email=email,
                 )
             except Exception as error:

@@ -31,7 +31,7 @@ def _settings(**overrides) -> EmailSettings:
 
 def _document() -> GeneratedConsultationDocument:
     return GeneratedConsultationDocument(
-        filename='konsultatsiya-vera-test.pdf',
+        filename='Консультация — Права при увольнении — 2026-08-06.pdf',
         content=b'%PDF-test-content',
     )
 
@@ -51,9 +51,17 @@ def test_build_message_contains_alternative_bodies_and_pdf_attachment():
     assert message['Message-ID']
     assert message.get_body(preferencelist=('plain',)).get_content_type() == 'text/plain'
     assert message.get_body(preferencelist=('html',)).get_content_type() == 'text/html'
+    plain_body = message.get_body(preferencelist=('plain',)).get_content()
+    html_body = message.get_body(preferencelist=('html',)).get_content()
+    assert 'Ассистента Веры' in plain_body
+    assert 'Ассистента Веры' in html_body
+    assert 'Документ содержит текстовый слой' not in plain_body
+    assert 'Документ содержит текстовый слой' not in html_body
     (attachment,) = list(message.iter_attachments())
     assert attachment.get_content_type() == 'application/pdf'
-    assert attachment.get_filename() == 'konsultatsiya-vera-test.pdf'
+    assert attachment.get_filename() == (
+        'Консультация — Права при увольнении — 2026-08-06.pdf'
+    )
     assert attachment.get_payload(decode=True) == b'%PDF-test-content'
 
 

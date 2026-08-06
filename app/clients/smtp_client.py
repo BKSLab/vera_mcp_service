@@ -56,10 +56,8 @@ class SmtpClient:
 
         plain_body = (
             'Здравствуйте!\n\n'
-            'Ваша консультация Веры подготовлена и приложена к этому письму '
-            'в формате PDF.\n\n'
-            'Документ содержит текстовый слой и предназначен в том числе для '
-            'чтения с помощью скринридера.\n\n'
+            'Ваша консультация от Ассистента Веры подготовлена и приложена '
+            'к этому письму в формате PDF.\n\n'
             'Работа для всех'
         )
         message.set_content(plain_body)
@@ -73,11 +71,8 @@ class SmtpClient:
   <main style="max-width:560px;margin:0 auto;padding:28px;border:1px solid #302800;border-top:3px solid #f5b800;border-radius:12px;background:#111111;">
     <p style="margin:0 0 8px;color:#f5b800;font-size:12px;font-weight:700;letter-spacing:2px;text-transform:uppercase;">Работа для всех</p>
     <h1 style="margin:0 0 18px;font-size:25px;line-height:1.25;">Ваша консультация готова</h1>
-    <p style="margin:0 0 14px;color:#c8c8c8;line-height:1.65;">
-      Консультация Веры приложена к письму в формате PDF.
-    </p>
-    <p style="margin:0 0 22px;color:#999999;line-height:1.65;">
-      Документ содержит текстовый слой и предназначен в том числе для чтения с помощью скринридера.
+    <p style="margin:0 0 22px;color:#c8c8c8;line-height:1.65;">
+      Консультация от Ассистента Веры приложена к письму в формате PDF.
     </p>
     <p style="margin:0;padding:14px 16px;border:1px solid #303030;border-radius:8px;background:#181818;color:#f0f0f0;">
       Файл: <strong style="color:#f5b800;">{safe_filename}</strong>

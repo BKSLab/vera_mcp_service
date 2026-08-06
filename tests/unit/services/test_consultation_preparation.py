@@ -7,15 +7,15 @@ from app.exceptions.consultation import ConsultationFormattingError
 from app.exceptions.llm import LlmApiRequestError
 from app.renderers.consultation_pdf import ConsultationPdfRenderer
 from app.schemas.consultation import (
+    FormattedConsultation,
     GeneratedConsultationDocument,
     PreparedConsultation,
 )
 from app.services.consultation_preparation import ConsultationPreparationService
 
 
-def _prepared() -> PreparedConsultation:
-    return PreparedConsultation(
-        title='Заголовок',
+def _formatted() -> FormattedConsultation:
+    return FormattedConsultation(
         intro=['Вступление.'],
         sections=[],
         conclusion=[],
@@ -25,7 +25,7 @@ def _prepared() -> PreparedConsultation:
 
 def _service() -> tuple[ConsultationPreparationService, AsyncMock, AsyncMock]:
     llm = AsyncMock(spec=LlmClient)
-    llm.get_llm_response.return_value = _prepared()
+    llm.get_llm_response.return_value = _formatted()
     renderer = AsyncMock(spec=ConsultationPdfRenderer)
     renderer.render.return_value = GeneratedConsultationDocument(
         filename='consultation.pdf',
@@ -44,14 +44,22 @@ def _service() -> tuple[ConsultationPreparationService, AsyncMock, AsyncMock]:
 async def test_preparation_passes_input_as_data_and_renders_validated_schema():
     service, llm, renderer = _service()
 
-    result = await service.prepare('Исходный текст.')
+    result = await service.prepare(
+        'Исходный текст.',
+        'Права при увольнении',
+    )
 
     assert result.filename == 'consultation.pdf'
     call = llm.get_llm_response.await_args
     assert call.kwargs['content'] == '<INPUT_DATA>\nИсходный текст.\n</INPUT_DATA>'
-    assert call.kwargs['schema'] is PreparedConsultation
+    assert call.kwargs['schema'] is FormattedConsultation
     assert 'max_completion_tokens' not in call.kwargs
-    renderer.render.assert_awaited_once_with(_prepared())
+    renderer.render.assert_awaited_once_with(
+        PreparedConsultation(
+            title='Права при увольнении',
+            **_formatted().model_dump(),
+        )
+    )
 
 
 async def test_preparation_maps_llm_final_error_and_skips_renderer():
@@ -62,6 +70,6 @@ async def test_preparation_maps_llm_final_error_and_skips_renderer():
     )
 
     with pytest.raises(ConsultationFormattingError):
-        await service.prepare('Исходный текст.')
+        await service.prepare('Исходный текст.', 'Права при увольнении')
 
     renderer.render.assert_not_awaited()

@@ -12,16 +12,21 @@ from app.schemas.consultation import (
     ConsultationSendError,
     ConsultationSendResult,
     ConsultationSendSuccess,
+    ConsultationTopic,
 )
 from app.services.consultation_preparation import ConsultationPreparationService
 
 logger = logging.getLogger(__name__)
 _EMAIL_ADAPTER = TypeAdapter(EmailStr)
+_TOPIC_ADAPTER = TypeAdapter(ConsultationTopic)
 
 ERROR_MESSAGES = {
     'invalid_email': 'Указан некорректный адрес электронной почты.',
     'invalid_consultation_text': (
         'Не удалось подготовить консультацию: текст отсутствует.'
+    ),
+    'invalid_consultation_topic': (
+        'Не удалось подготовить консультацию: укажите краткую тему.'
     ),
     'consultation_formatting_failed': (
         'Не удалось подготовить текст консультации. Попробуйте позже.'
@@ -51,6 +56,7 @@ class ConsultationDeliveryService:
         self,
         *,
         consultation_text: str,
+        consultation_topic: str,
         email: str,
     ) -> ConsultationSendResult:
         normalized_email = self._validate_email(email)
@@ -61,12 +67,19 @@ class ConsultationDeliveryService:
         if not normalized_text:
             return self._error('invalid_consultation_text')
 
+        normalized_topic = self._validate_topic(consultation_topic)
+        if normalized_topic is None:
+            return self._error('invalid_consultation_topic')
+
         logger.info(
             '📄 Подготовка консультации: input_length=%d',
             len(normalized_text),
         )
         try:
-            document = await self._preparation_service.prepare(normalized_text)
+            document = await self._preparation_service.prepare(
+                normalized_text,
+                normalized_topic,
+            )
         except ConsultationFormattingError:
             logger.warning('⚠️ Не удалось структурировать консультацию')
             return self._error('consultation_formatting_failed')
@@ -108,6 +121,15 @@ class ConsultationDeliveryService:
             return None
         try:
             return str(_EMAIL_ADAPTER.validate_python(candidate))
+        except ValidationError:
+            return None
+
+    def _validate_topic(self, value: str) -> str | None:
+        if not isinstance(value, str):
+            return None
+        candidate = ' '.join(value.split())
+        try:
+            return _TOPIC_ADAPTER.validate_python(candidate)
         except ValidationError:
             return None
 

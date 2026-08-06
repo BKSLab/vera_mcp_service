@@ -83,8 +83,8 @@ class EmailSettings(SettingsBase):
     smtp_max_attempts: int = Field(default=3, ge=1, le=10)
     smtp_retry_base_delay_seconds: float = Field(default=1.0, ge=0)
     smtp_retry_max_delay_seconds: float = Field(default=10.0, ge=0)
-    consultation_email_subject: str = 'Ваша консультация Веры'
-    consultation_email_from_name: str = 'Вера · Работа для всех'
+    consultation_email_subject: str = 'Ваша консультация от Ассистента Веры'
+    consultation_email_from_name: str = 'Ассистент Вера · Работа для всех'
 
     @model_validator(mode='after')
     def validate_transport(self) -> 'EmailSettings':

@@ -17,14 +17,18 @@ def _mcp(service: AsyncMock) -> FastMCP:
     return mcp
 
 
-async def test_tool_public_schema_contains_only_text_and_email():
+async def test_tool_public_schema_contains_text_topic_and_email():
     service = AsyncMock(spec=ConsultationDeliveryService)
     mcp = _mcp(service)
 
     (tool,) = await mcp.list_tools()
 
     assert tool.name == 'send_consultation_email'
-    assert set(tool.inputSchema['properties']) == {'consultation_text', 'email'}
+    assert set(tool.inputSchema['properties']) == {
+        'consultation_text',
+        'consultation_topic',
+        'email',
+    }
     assert 'явной просьбы' in tool.description
     assert 'Не повторяй' in tool.description
 
@@ -41,12 +45,14 @@ async def test_tool_delegates_without_formatting_and_serializes_success():
         'send_consultation_email',
         {
             'consultation_text': 'Исходный текст.',
+            'consultation_topic': 'Права при увольнении',
             'email': 'user@example.com',
         },
     )
 
     service.send.assert_awaited_once_with(
         consultation_text='Исходный текст.',
+        consultation_topic='Права при увольнении',
         email='user@example.com',
     )
     assert json.loads(result[0].text) == {
@@ -69,6 +75,7 @@ async def test_tool_returns_business_error_as_regular_result():
         'send_consultation_email',
         {
             'consultation_text': 'Текст.',
+            'consultation_topic': 'Права при увольнении',
             'email': 'invalid',
         },
     )

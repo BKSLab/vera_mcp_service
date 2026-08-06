@@ -120,7 +120,9 @@ async def test_smtp_client_sends_parseable_unicode_pdf_over_local_socket():
 
     assert attempt == 1
     assert str(parsed['To']) == 'user@example.com'
-    assert str(parsed['Subject']) == 'Ваша консультация Веры'
+    assert str(parsed['Subject']) == (
+        'Ваша консультация от Ассистента Веры'
+    )
     assert parsed.get_body(preferencelist=('plain',)) is not None
     assert parsed.get_body(preferencelist=('html',)) is not None
     assert len(attachments) == 1

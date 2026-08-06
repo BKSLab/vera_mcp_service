@@ -1,4 +1,5 @@
 import sys
+from datetime import datetime
 from io import BytesIO
 from pathlib import Path
 from types import SimpleNamespace
@@ -52,7 +53,10 @@ async def test_renderer_builds_pdf_bytes_and_escapes_html(monkeypatch):
     result = await renderer.render(_prepared('<script>alert(1)</script>'))
 
     assert result.content == b'%PDF-fake'
-    assert result.filename.startswith('konsultatsiya-vera-')
+    assert result.filename.startswith(
+        'Консультация — Безопасный заголовок — '
+    )
+    assert result.filename.endswith('.pdf')
     assert '<script>' not in captured['html']
     assert '&lt;script&gt;' in captured['html']
     assert (
@@ -62,6 +66,19 @@ async def test_renderer_builds_pdf_bytes_and_escapes_html(monkeypatch):
     assert '<a href="javascript:' not in captured['html']
     assert captured['options']['pdf_tags'] is True
     assert captured['options']['pdf_variant'] == 'pdf/ua-1'
+
+
+def test_renderer_builds_safe_russian_filename():
+    created_at = datetime(2026, 8, 6, 13, 23, 39)
+
+    filename = ConsultationPdfRenderer._build_filename(
+        '  Права: отпуск / увольнение?  ',
+        created_at,
+    )
+
+    assert filename == (
+        'Консультация — Права отпуск увольнение — 2026-08-06.pdf'
+    )
 
 
 def test_renderer_rejects_external_resources():

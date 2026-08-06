@@ -1,6 +1,7 @@
 import asyncio
 import logging
 import os
+import re
 from datetime import datetime
 from pathlib import Path
 from urllib.parse import unquote, urlparse
@@ -20,6 +21,9 @@ from app.schemas.consultation import (
 
 logger = logging.getLogger(__name__)
 tracer = get_tracer()
+_UNSAFE_FILENAME_CHARACTERS = re.compile(r'[<>:"/\\|?*\x00-\x1f]')
+_FILENAME_WHITESPACE = re.compile(r'\s+')
+_FILENAME_TOPIC_MAX_LENGTH = 100
 
 
 class ConsultationPdfRenderer:
@@ -72,9 +76,7 @@ class ConsultationPdfRenderer:
 
             now = datetime.now(self._timezone)
             short_id = uuid4().hex[:6]
-            filename = (
-                f'konsultatsiya-vera-{now:%Y%m%d-%H%M%S}-{short_id}.pdf'
-            )
+            filename = self._build_filename(consultation.title, now)
             html = self._environment.get_template('consultation.html').render(
                 consultation=consultation,
                 created_at_iso=now.isoformat(),
@@ -153,3 +155,12 @@ class ConsultationPdfRenderer:
             'декабря',
         )
         return f'{value.day} {months[value.month - 1]} {value.year} года'
+
+    @staticmethod
+    def _build_filename(title: str, created_at: datetime) -> str:
+        safe_topic = _UNSAFE_FILENAME_CHARACTERS.sub(' ', title)
+        safe_topic = _FILENAME_WHITESPACE.sub(' ', safe_topic).strip(' .')
+        safe_topic = safe_topic[:_FILENAME_TOPIC_MAX_LENGTH].rstrip(' .')
+        if not safe_topic:
+            safe_topic = 'Без темы'
+        return f'Консультация — {safe_topic} — {created_at:%Y-%m-%d}.pdf'

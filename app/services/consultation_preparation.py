@@ -6,6 +6,7 @@ from app.exceptions.llm import LlmApiRequestError
 from app.observability.tracing import get_tracer
 from app.renderers.consultation_pdf import ConsultationPdfRenderer
 from app.schemas.consultation import (
+    FormattedConsultation,
     GeneratedConsultationDocument,
     PreparedConsultation,
 )
@@ -32,6 +33,7 @@ class ConsultationPreparationService:
     async def prepare(
         self,
         consultation_text: str,
+        consultation_topic: str,
     ) -> GeneratedConsultationDocument:
         with tracer.start_as_current_span('consultation.format') as span:
             try:
@@ -42,17 +44,24 @@ class ConsultationPreparationService:
                         '</INPUT_DATA>'
                     ),
                     prompt=CONSULTATION_FORMATTING_PROMPT,
-                    schema=PreparedConsultation,
+                    schema=FormattedConsultation,
                 )
             except LlmApiRequestError as error:
                 span.set_attribute('consultation.outcome', 'error')
                 raise ConsultationFormattingError('llm_attempts_exhausted') from error
 
-            if not isinstance(prepared, PreparedConsultation):
+            if not isinstance(prepared, FormattedConsultation):
                 span.set_attribute('consultation.outcome', 'error')
                 raise ConsultationFormattingError('unexpected_llm_result_type')
 
+            consultation = PreparedConsultation(
+                title=consultation_topic,
+                **prepared.model_dump(),
+            )
             span.set_attribute('consultation.outcome', 'ok')
-            span.set_attribute('consultation.section_count', len(prepared.sections))
+            span.set_attribute(
+                'consultation.section_count',
+                len(consultation.sections),
+            )
 
-        return await self._pdf_renderer.render(prepared)
+        return await self._pdf_renderer.render(consultation)

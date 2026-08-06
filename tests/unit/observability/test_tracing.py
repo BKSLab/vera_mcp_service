@@ -147,6 +147,7 @@ async def test_consultation_span_contains_no_text_or_email():
         'send_consultation_email',
         {
             'consultation_text': sensitive_text,
+            'consultation_topic': 'PRIVATE CONSULTATION TOPIC',
             'email': sensitive_email,
         },
     )
@@ -154,9 +155,13 @@ async def test_consultation_span_contains_no_text_or_email():
     span = _finished_span('mcp.execute.send_consultation_email')
     attributes = str(span.attributes)
     assert span.attributes['consultation.input_length'] == len(sensitive_text)
+    assert span.attributes['consultation.topic_length'] == len(
+        'PRIVATE CONSULTATION TOPIC'
+    )
     assert span.attributes['consultation.outcome'] == 'ok'
     assert sensitive_text not in attributes
     assert sensitive_email not in attributes
+    assert 'PRIVATE CONSULTATION TOPIC' not in attributes
 
 
 async def test_consultation_span_uses_incoming_trace_context():
@@ -179,6 +184,7 @@ async def test_consultation_span_uses_incoming_trace_context():
     )
     await registered_tool.fn(
         consultation_text='Текст.',
+        consultation_topic='Трудовые права',
         email='user@example.com',
         ctx=fake_context,
     )

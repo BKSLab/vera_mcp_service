@@ -19,7 +19,13 @@ from app.tools.send_consultation_email import register_send_consultation_email
 
 
 class FakeDeliveryService:
-    async def send(self, *, consultation_text: str, email: str):
+    async def send(
+        self,
+        *,
+        consultation_text: str,
+        consultation_topic: str,
+        email: str,
+    ):
         if '@' not in email:
             return ConsultationSendError(
                 code='invalid_email',
@@ -79,7 +85,11 @@ async def test_consultation_tool_success_error_and_concurrency_over_real_protoco
         (tool,) = [item for item in tools if item.name == 'send_consultation_email']
 
         invalid = await tool.ainvoke(
-            {'consultation_text': 'Текст.', 'email': 'invalid'}
+            {
+                'consultation_text': 'Текст.',
+                'consultation_topic': 'Трудовые права',
+                'email': 'invalid',
+            }
         )
         assert _parse_result(invalid)['code'] == 'invalid_email'
 
@@ -89,6 +99,7 @@ async def test_consultation_tool_success_error_and_concurrency_over_real_protoco
                 tool.ainvoke(
                     {
                         'consultation_text': f'Консультация {index}.',
+                        'consultation_topic': f'Трудовые права {index}',
                         'email': email,
                     }
                 )

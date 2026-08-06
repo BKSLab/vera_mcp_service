@@ -53,13 +53,18 @@ body {
 }
 
 .platform-brand {
-    gap: 9pt;
+    flex: 0 0 auto;
+    gap: 8pt;
+    padding: 4pt 7pt;
+    border: 1pt solid rgba(255, 255, 255, 0.15);
+    border-radius: 8pt;
+    background: #111111;
 }
 
 .platform-logo-wrap {
     display: flex;
-    width: 34pt;
-    height: 34pt;
+    width: 30pt;
+    height: 30pt;
     align-items: center;
     justify-content: center;
     border: 1pt solid rgba(245, 184, 0, 0.42);
@@ -67,9 +72,14 @@ body {
 }
 
 .platform-logo {
-    width: 31pt;
-    height: 31pt;
+    width: 28pt;
+    height: 28pt;
     border-radius: 50%;
+}
+
+.platform-copy {
+    flex: 0 0 auto;
+    min-width: 82pt;
 }
 
 .platform-name,
@@ -86,13 +96,15 @@ body {
     color: var(--accent);
     font-size: 10.5pt;
     font-weight: 800;
+    white-space: nowrap;
 }
 
 .platform-slogan {
     margin-top: 2pt;
     color: var(--muted);
     font-size: 6.5pt;
-    letter-spacing: 0.12em;
+    letter-spacing: 0.08em;
+    white-space: nowrap;
 }
 
 .document-kind {
@@ -101,11 +113,16 @@ body {
     font-weight: 700;
     letter-spacing: 0.12em;
     text-transform: uppercase;
+    white-space: nowrap;
 }
 
 .title-row {
     gap: 16pt;
     margin-top: 22pt;
+}
+
+.title-copy {
+    min-width: 0;
 }
 
 .vera-avatar {
@@ -290,7 +307,7 @@ a {
 
     @bottom-left {
         color: #8f8f8f;
-        content: "РАБОТА ДЛЯ ВСЕХ · ВЕРА";
+        content: "РАБОТА ДЛЯ ВСЕХ · АССИСТЕНТ ВЕРА";
         font-family: "DejaVu Sans", "Noto Sans", Arial, sans-serif;
         font-size: 7pt;
         font-weight: 700;

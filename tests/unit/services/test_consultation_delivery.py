@@ -15,7 +15,7 @@ from app.services.consultation_preparation import ConsultationPreparationService
 
 def _document() -> GeneratedConsultationDocument:
     return GeneratedConsultationDocument(
-        filename='konsultatsiya-vera-test.pdf',
+        filename='Консультация — Трудовые права — 2026-08-06.pdf',
         content=b'%PDF-test',
     )
 
@@ -49,6 +49,7 @@ async def test_invalid_email_returns_business_error_without_side_effects(email):
 
     result = await service.send(
         consultation_text='Полный текст консультации.',
+        consultation_topic='Трудовые права',
         email=email,
     )
 
@@ -64,9 +65,28 @@ async def test_invalid_email_returns_business_error_without_side_effects(email):
 async def test_empty_text_returns_business_error():
     service, preparation, smtp = _service()
 
-    result = await service.send(consultation_text='   ', email='user@example.com')
+    result = await service.send(
+        consultation_text='   ',
+        consultation_topic='Трудовые права',
+        email='user@example.com',
+    )
 
     assert result.code == 'invalid_consultation_text'
+    preparation.prepare.assert_not_awaited()
+    smtp.send_document.assert_not_awaited()
+
+
+@pytest.mark.parametrize('topic', ['', '   ', 'а' * 121])
+async def test_invalid_topic_returns_business_error_without_side_effects(topic):
+    service, preparation, smtp = _service()
+
+    result = await service.send(
+        consultation_text='Полный текст консультации.',
+        consultation_topic=topic,
+        email='user@example.com',
+    )
+
+    assert result.code == 'invalid_consultation_topic'
     preparation.prepare.assert_not_awaited()
     smtp.send_document.assert_not_awaited()
 
@@ -77,11 +97,15 @@ async def test_long_real_consultation_is_not_rejected_or_truncated():
 
     result = await service.send(
         consultation_text=consultation_text,
+        consultation_topic='  Права   при\nувольнении  ',
         email='user@example.com',
     )
 
     assert result.status == 'ok'
-    preparation.prepare.assert_awaited_once_with(consultation_text.strip())
+    preparation.prepare.assert_awaited_once_with(
+        consultation_text.strip(),
+        'Права при увольнении',
+    )
     smtp.send_document.assert_awaited_once()
 
 
@@ -107,6 +131,7 @@ async def test_preparation_errors_are_mapped_and_smtp_is_not_called(
 
     result = await service.send(
         consultation_text='Текст.',
+        consultation_topic='Трудовые права',
         email='user@example.com',
     )
 
@@ -123,6 +148,7 @@ async def test_smtp_error_is_mapped_to_business_error():
 
     result = await service.send(
         consultation_text='Текст.',
+        consultation_topic='Трудовые права',
         email='user@example.com',
     )
 
@@ -135,16 +161,20 @@ async def test_success_returns_normalized_email_and_document_name():
 
     result = await service.send(
         consultation_text=' Текст консультации. ',
+        consultation_topic=' Трудовые права ',
         email=' User@EXAMPLE.COM ',
     )
 
     assert result.model_dump(mode='json') == {
         'status': 'ok',
         'email': 'User@example.com',
-        'document_name': 'konsultatsiya-vera-test.pdf',
+        'document_name': 'Консультация — Трудовые права — 2026-08-06.pdf',
         'message': 'Консультация успешно отправлена.',
     }
-    preparation.prepare.assert_awaited_once_with('Текст консультации.')
+    preparation.prepare.assert_awaited_once_with(
+        'Текст консультации.',
+        'Трудовые права',
+    )
     smtp.send_document.assert_awaited_once_with(
         recipient='User@example.com',
         document=_document(),
