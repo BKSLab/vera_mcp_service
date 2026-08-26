@@ -99,6 +99,12 @@ async def test_register_vera_rag_kb_sets_non_empty_description():
     assert 'по всей доступной базе знаний' in vera_rag_kb_tool.description
     assert 'audience' not in vera_rag_kb_tool.description
     assert 'Трудовой кодекс РФ' not in vera_rag_kb_tool.description
+    assert 'дословно' in vera_rag_kb_tool.description
+    assert 'Не добавляй инвалидность, роль или аудиторию' in vera_rag_kb_tool.description
+    assert 'символ в символ' in vera_rag_kb_tool.description
+    assert 'Уточнение приоритетнее вызова' in vera_rag_kb_tool.description
+    assert 'отдельного тематического слова недостаточно' in vera_rag_kb_tool.description
+    assert 'Пустой список означает' in vera_rag_kb_tool.description
 
 
 async def test_concurrent_kb_search_calls_do_not_share_state():
