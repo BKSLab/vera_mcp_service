@@ -1,7 +1,9 @@
 import json
 from unittest.mock import AsyncMock
 
+import pytest
 from mcp.server.fastmcp import FastMCP
+from pydantic import ValidationError
 
 from app.schemas.consultation import (
     ConsultationSendError,
@@ -15,6 +17,14 @@ def _mcp(service: AsyncMock) -> FastMCP:
     mcp = FastMCP('test-consultation-email')
     register_send_consultation_email(mcp, service)
     return mcp
+
+
+def test_success_contract_forbids_returning_email():
+    with pytest.raises(ValidationError):
+        ConsultationSendSuccess(
+            document_name='consultation.pdf',
+            email='private-user@example.com',
+        )
 
 
 async def test_tool_public_schema_contains_text_topic_and_email():
@@ -36,7 +46,6 @@ async def test_tool_public_schema_contains_text_topic_and_email():
 async def test_tool_delegates_without_formatting_and_serializes_success():
     service = AsyncMock(spec=ConsultationDeliveryService)
     service.send.return_value = ConsultationSendSuccess(
-        email='user@example.com',
         document_name='consultation.pdf',
     )
     mcp = _mcp(service)
@@ -57,10 +66,10 @@ async def test_tool_delegates_without_formatting_and_serializes_success():
     )
     assert json.loads(result[0].text) == {
         'status': 'ok',
-        'email': 'user@example.com',
         'document_name': 'consultation.pdf',
         'message': 'Консультация успешно отправлена.',
     }
+    assert 'user@example.com' not in result[0].text
 
 
 async def test_tool_returns_business_error_as_regular_result():

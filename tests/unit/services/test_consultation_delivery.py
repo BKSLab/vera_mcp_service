@@ -156,7 +156,7 @@ async def test_smtp_error_is_mapped_to_business_error():
     preparation.prepare.assert_awaited_once()
 
 
-async def test_success_returns_normalized_email_and_document_name():
+async def test_success_uses_normalized_email_but_does_not_return_it():
     service, preparation, smtp = _service()
 
     result = await service.send(
@@ -167,7 +167,6 @@ async def test_success_returns_normalized_email_and_document_name():
 
     assert result.model_dump(mode='json') == {
         'status': 'ok',
-        'email': 'User@example.com',
         'document_name': 'Консультация — Трудовые права — 2026-08-06.pdf',
         'message': 'Консультация успешно отправлена.',
     }

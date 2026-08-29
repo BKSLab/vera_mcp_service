@@ -128,7 +128,6 @@ class ConsultationSendSuccess(BaseModel):
     model_config = ConfigDict(extra='forbid')
 
     status: Literal['ok'] = 'ok'
-    email: str
     document_name: str
     message: Literal['Консультация успешно отправлена.'] = (
         'Консультация успешно отправлена.'

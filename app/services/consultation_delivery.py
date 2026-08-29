@@ -105,7 +105,6 @@ class ConsultationDeliveryService:
             document.size_bytes,
         )
         return ConsultationSendSuccess(
-            email=normalized_email,
             document_name=document.filename,
         )
 

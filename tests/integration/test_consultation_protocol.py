@@ -33,7 +33,6 @@ class FakeDeliveryService:
             )
         local_part = email.split('@', maxsplit=1)[0]
         return ConsultationSendSuccess(
-            email=email,
             document_name=f'consultation-{local_part}.pdf',
         )
 
@@ -108,7 +107,11 @@ async def test_consultation_tool_success_error_and_concurrency_over_real_protoco
         )
 
     parsed = [_parse_result(result) for result in results]
-    assert [result['email'] for result in parsed] == emails
+    assert all('email' not in result for result in parsed)
+    assert not any(
+        email in json.dumps(parsed, ensure_ascii=False)
+        for email in emails
+    )
     assert [result['document_name'] for result in parsed] == [
         f'consultation-user-{index}.pdf' for index in range(20)
     ]

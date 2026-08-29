@@ -137,7 +137,6 @@ async def test_consultation_span_contains_no_text_or_email():
     sensitive_email = 'private-user@example.com'
     delivery_service = AsyncMock()
     delivery_service.send.return_value = ConsultationSendSuccess(
-        email=sensitive_email,
         document_name='consultation.pdf',
     )
     mcp = FastMCP('test-consultation-tracing')
@@ -167,7 +166,6 @@ async def test_consultation_span_contains_no_text_or_email():
 async def test_consultation_span_uses_incoming_trace_context():
     delivery_service = AsyncMock()
     delivery_service.send.return_value = ConsultationSendSuccess(
-        email='user@example.com',
         document_name='consultation.pdf',
     )
     mcp = FastMCP('test-consultation-tracing')

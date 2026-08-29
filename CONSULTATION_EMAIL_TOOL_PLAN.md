@@ -307,7 +307,6 @@ Agent Service получит MCP `ToolError`.
 ```json
 {
   "status": "ok",
-  "email": "user@example.com",
   "document_name": "Консультация — Права при увольнении — 2026-08-06.pdf",
   "message": "Консультация успешно отправлена."
 }
@@ -316,9 +315,12 @@ Agent Service получит MCP `ToolError`.
 Обязательные поля:
 
 - `status`: только `"ok"`;
-- `email`: нормализованный адрес получателя;
 - `document_name`: безопасное имя вложения без пути;
 - `message`: готовая фраза для ответа агента.
+
+Email используется только как входной аргумент для SMTP и не возвращается в
+результате инструмента, чтобы повторно не передавать персональный идентификатор
+в Agent Service, историю графа и трассировку.
 
 ### 5.5. Словарь бизнес-ошибки
 
@@ -1050,7 +1052,7 @@ Service нужны только для корректного вызова му�
 - ошибка LLM мапится в `consultation_formatting_failed`;
 - ошибка PDF мапится в `pdf_generation_failed`;
 - ошибка SMTP мапится в `email_delivery_failed`;
-- успех возвращает email и filename;
+- успех возвращает status и filename, но не email;
 - временный файл не создаётся ни в одной ветке;
 - параллельные вызовы не делят документ/email/Message-ID.
 
@@ -1333,7 +1335,7 @@ Production SMTP и реальный пользовательский email в а
 - LLM/PDF/SMTP ошибки возвращают стабильные error dict.
 - SMTP выполняет только внутренние ограниченные retries.
 - Agent Service не повторяет мутирующую тулу.
-- Успех содержит status, email и document name.
+- Успех содержит status и document name, но не email.
 - Временный документ отсутствует после любого завершения.
 - Логи и traces не содержат консультацию, email и секреты.
 - Unit, contract, protocol, concurrency и Docker smoke tests зелёные.
